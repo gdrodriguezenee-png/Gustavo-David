@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Finanzas Taxi — Control de una empresa pequeña</title>
+<style>
+  :root{
+    --bg:#0f1419; --panel:#1a2028; --panel2:#212a34; --line:#2c3742;
+    --txt:#e6edf3; --muted:#8a97a6; --accent:#f5b301; --accent2:#ffcf40;
+    --green:#2fbf71; --red:#ef4444; --blue:#3b82f6;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--txt);line-height:1.45;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1120px;margin:0 auto;padding:20px 16px 80px}
+
+  header{display:flex;align-items:center;gap:14px;margin-bottom:18px;flex-wrap:wrap}
+  .logo{width:46px;height:46px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:grid;place-items:center;font-size:26px;box-shadow:0 4px 14px rgba(245,179,1,.25)}
+  header h1{font-size:20px;font-weight:700;letter-spacing:.2px}
+  header p{color:var(--muted);font-size:13px}
+  .head-actions{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+
+  .btn{border:1px solid var(--line);background:var(--panel2);color:var(--txt);padding:9px 14px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:600;transition:.15s;display:inline-flex;align-items:center;gap:6px}
+  .btn:hover{border-color:var(--accent);color:var(--accent)}
+  .btn.primary{background:var(--accent);color:#1a1200;border-color:var(--accent)}
+  .btn.primary:hover{background:var(--accent2);color:#1a1200}
+  .btn.ghost{background:transparent}
+  .btn.sm{padding:5px 10px;font-size:12px}
+
+  .tabs{display:flex;gap:6px;margin-bottom:18px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .tabs button{background:none;border:none;color:var(--muted);padding:11px 16px;cursor:pointer;font-size:14px;font-weight:600;border-bottom:2px solid transparent;margin-bottom:-1px}
+  .tabs button.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
+  .kpi .label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+  .kpi .val{font-size:23px;font-weight:800;margin-top:6px}
+  .kpi .sub{font-size:12px;color:var(--muted);margin-top:2px}
+  .kpi.income .val{color:var(--green)}
+  .kpi.expense .val{color:var(--red)}
+  .val.pos{color:var(--green)} .val.neg{color:var(--red)}
+
+  .grid{display:grid;grid-template-columns:1fr 1.4fr;gap:16px;align-items:start}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
+  .card h2{font-size:15px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+  .card h2 .tag{font-size:11px;color:var(--muted);font-weight:500;margin-left:auto}
+
+  label{display:block;font-size:12px;color:var(--muted);margin:10px 0 5px;font-weight:600}
+  input,select,textarea{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:9px;padding:10px 11px;font-size:14px;font-family:inherit}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
+  textarea{resize:vertical;min-height:44px}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+  .maint-box{border:1px dashed var(--line);border-radius:11px;padding:12px;margin-top:12px;background:rgba(59,130,246,.05)}
+  .maint-box .mh{font-size:12px;font-weight:700;color:var(--blue);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+  .part-row{display:grid;grid-template-columns:1fr 110px 30px;gap:7px;margin-bottom:7px}
+  .part-row input{padding:8px 9px;font-size:13px}
+  .part-row .rm{background:none;border:1px solid var(--line);color:var(--muted);border-radius:8px;cursor:pointer;font-size:13px}
+  .part-row .rm:hover{color:var(--red);border-color:var(--red)}
+
+  .photo-drop{border:1px dashed var(--line);border-radius:11px;padding:14px;text-align:center;color:var(--muted);cursor:pointer;font-size:13px;transition:.15s}
+  .photo-drop:hover{border-color:var(--accent);color:var(--accent)}
+  .thumb-wrap{position:relative;display:inline-block;margin-top:10px}
+  .thumb{max-width:100%;max-height:150px;border-radius:10px;border:1px solid var(--line)}
+  .thumb-x{position:absolute;top:-8px;right:-8px;background:var(--red);color:#fff;border:none;width:24px;height:24px;border-radius:50%;cursor:pointer;font-weight:700}
+
+  .filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+  .filters select,.filters input{width:auto;flex:1;min-width:120px;padding:8px 10px;font-size:13px}
+
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th{text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px;padding:8px 10px;border-bottom:1px solid var(--line)}
+  td{padding:10px;border-bottom:1px solid var(--line);vertical-align:middle}
+  tr:last-child td{border-bottom:none}
+  .amt{font-weight:700;white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums}
+  .amt.in{color:var(--green)} .amt.ex{color:var(--red)}
+  .pill{font-size:11px;padding:2px 9px;border-radius:20px;background:var(--panel2);border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+  .clip{cursor:pointer;color:var(--blue);text-decoration:none}
+  .del{color:var(--muted);cursor:pointer;border:none;background:none;font-size:15px;padding:2px 6px;border-radius:6px}
+  .del:hover{color:var(--red);background:rgba(239,68,68,.1)}
+  .empty{text-align:center;color:var(--muted);padding:34px 10px;font-size:13.5px}
+
+  /* Grilla de tarifas semanales */
+  .week-nav{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+  .week-nav .lbl{font-weight:800;font-size:15px}
+  .tgrid-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px}
+  table.tgrid{font-size:13px}
+  table.tgrid th,table.tgrid td{padding:8px 9px;text-align:center;border-bottom:1px solid var(--line);white-space:nowrap}
+  table.tgrid thead th{background:var(--panel2)}
+  table.tgrid .moto{text-align:left;font-weight:700;position:sticky;left:0;background:var(--panel);min-width:120px}
+  table.tgrid thead .moto{background:var(--panel2)}
+  table.tgrid td.moto .rm{background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;margin-left:6px}
+  table.tgrid td.moto .rm:hover{color:var(--red)}
+  table.tgrid input{width:66px;padding:7px 6px;text-align:right;font-variant-numeric:tabular-nums;font-size:13px}
+  table.tgrid .day small{display:block;color:var(--muted);font-weight:400;font-size:10px}
+  table.tgrid .rowtot,table.tgrid .coltot{font-weight:800;color:var(--green);font-variant-numeric:tabular-nums}
+  table.tgrid tfoot td{border-top:2px solid var(--line);border-bottom:none;background:var(--panel2)}
+  .dom small,.sab small{color:var(--accent)!important}
+
+  .cat-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:13px}
+  .cat-row .nm{width:120px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cat-row .bar{flex:1;height:9px;background:var(--panel2);border-radius:6px;overflow:hidden}
+  .cat-row .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:6px}
+  .cat-row .v{width:96px;text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+
+  .mcard{border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+  .mcard .top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+  .mcard .veh{font-weight:800;font-size:15px}
+  .mcard .meta{color:var(--muted);font-size:12.5px}
+  .mcard .tot{margin-left:auto;font-weight:800;color:var(--red);font-variant-numeric:tabular-nums}
+  .parts-list{list-style:none;font-size:13px}
+  .parts-list li{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed var(--line)}
+  .parts-list li:last-child{border-bottom:none}
+  .parts-list .pc{color:var(--muted);font-variant-numeric:tabular-nums}
+  .mthumb{width:54px;height:54px;object-fit:cover;border-radius:8px;border:1px solid var(--line);cursor:pointer}
+
+  .muted{color:var(--muted)} .center{text-align:center}
+  .mini{font-size:12px;color:var(--muted);margin-top:12px}
+  .hidden{display:none!important}
+  footer{margin-top:26px;text-align:center;color:var(--muted);font-size:12px}
+
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;place-items:center;z-index:50;padding:20px}
+  .overlay.show{display:grid}
+  .overlay img{max-width:95vw;max-height:92vh;border-radius:10px}
+  @media(max-width:820px){.kpis{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}.head-actions{width:100%}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">🚕</div>
+    <div>
+      <h1>Finanzas Taxi</h1>
+      <p>Tarifas semanales, gastos y mantenimiento de tu flota</p>
+    </div>
+    <div class="head-actions">
+      <button class="btn ghost" onclick="openAI()">🤖 IA</button>
+      <button class="btn ghost" onclick="exportCSV()">⬇ CSV</button>
+      <button class="btn ghost" onclick="exportJSON()">💾 Respaldo</button>
+      <button class="btn ghost" onclick="document.getElementById('imp').click()">📂 Importar</button>
+      <input type="file" id="imp" accept="application/json" hidden onchange="importJSON(event)">
+    </div>
+  </header>
+
+  <div class="tabs">
+    <button id="tab-tar" class="active" onclick="showTab('tar')">🛵 Tarifas</button>
+    <button id="tab-fin" onclick="showTab('fin')">💵 Gastos</button>
+    <button id="tab-mnt" onclick="showTab('mnt')">🔧 Mantenimiento</button>
+  </div>
+
+  <!-- ============ TAB TARIFAS (INGRESOS SEMANALES) ============ -->
+  <section id="view-tar">
+    <div class="week-nav">
+      <button class="btn sm" onclick="changeWeek(-1)">◀ Semana anterior</button>
+      <span class="lbl" id="week-label">—</span>
+      <button class="btn sm" onclick="changeWeek(1)">Semana siguiente ▶</button>
+      <button class="btn sm ghost" onclick="thisWeek()">Hoy</button>
+    </div>
+
+    <div class="kpis">
+      <div class="kpi income"><div class="label">Total de la semana</div><div class="val" id="t-total">L 0.00</div><div class="sub">tarifas cobradas</div></div>
+      <div class="kpi"><div class="label">Promedio por día</div><div class="val" id="t-avg">L 0.00</div><div class="sub">de la semana</div></div>
+      <div class="kpi"><div class="label">Motos</div><div class="val" id="t-motos">0</div><div class="sub">en la lista</div></div>
+      <div class="kpi"><div class="label">Días con cobro</div><div class="val" id="t-days">0</div><div class="sub">esta semana</div></div>
+    </div>
+
+    <div class="card">
+      <h2>🛵 Tarifa diaria por moto <span class="tag" id="week-range"></span></h2>
+      <div class="filters" style="align-items:center">
+        <input type="text" id="new-moto" placeholder="Nombre / placa de la moto (ej. Moto 01)" style="flex:2" onkeydown="if(event.key==='Enter')addMoto()">
+        <button class="btn sm" onclick="addMoto()">＋ Agregar moto</button>
+        <span class="muted" style="font-size:12px">Tarifa base</span>
+        <input type="number" id="def-tarifa" value="400" min="0" style="width:90px;flex:none">
+        <button class="btn sm ghost" onclick="fillWeek()">Llenar semana</button>
+      </div>
+      <div class="tgrid-wrap">
+        <table class="tgrid" id="tgrid"></table>
+      </div>
+      <p class="mini">Escribe lo cobrado cada día (varía según el día). Deja en blanco un día sin trabajo. <b>Llenar semana</b> pone la tarifa base en los días vacíos.</p>
+    </div>
+  </section>
+
+  <!-- ============ TAB GASTOS ============ -->
+  <section id="view-fin" class="hidden">
+    <div class="kpis">
+      <div class="kpi income"><div class="label">Ingresos</div><div class="val" id="k-in">L 0.00</div><div class="sub">este periodo</div></div>
+      <div class="kpi expense"><div class="label">Gastos</div><div class="val" id="k-ex">L 0.00</div><div class="sub">este periodo</div></div>
+      <div class="kpi"><div class="label">Balance</div><div class="val" id="k-bal">L 0.00</div><div class="sub">ingresos − gastos</div></div>
+      <div class="kpi"><div class="label">Movimientos</div><div class="val" id="k-cnt">0</div><div class="sub" id="k-veh">— vehículos</div></div>
+    </div>
+
+    <div class="grid">
+      <!-- Formulario de gasto -->
+      <div class="card">
+        <h2>➖ Nuevo gasto</h2>
+        <label>Monto</label>
+        <input type="number" id="f-amount" placeholder="0.00" step="0.01" min="0" inputmode="decimal">
+
+        <div class="row">
+          <div><label>Fecha</label><input type="date" id="f-date"></div>
+          <div><label>Categoría</label><select id="f-cat" onchange="onCatChange()"></select></div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label>Vehículo / Moto</label>
+            <input type="text" id="f-veh" list="veh-list" placeholder="Ej. Moto 01">
+            <datalist id="veh-list"></datalist>
+          </div>
+          <div>
+            <label>Conductor</label>
+            <input type="text" id="f-drv" list="drv-list" placeholder="Opcional">
+            <datalist id="drv-list"></datalist>
+          </div>
+        </div>
+
+        <div id="maint-box" class="maint-box hidden">
+          <div class="mh">🔧 Detalle del mantenimiento</div>
+          <label>Taller / Mecánico</label>
+          <input type="text" id="f-shop" placeholder="Opcional">
+          <label style="margin-top:12px">Partes / refacciones cambiadas</label>
+          <div id="parts"></div>
+          <div style="display:flex;gap:8px;margin-top:4px">
+            <button type="button" class="btn sm ghost" onclick="addPartRow()">＋ Agregar parte</button>
+          </div>
+          <p class="mini" style="margin-top:8px">💡 El <b>monto total</b> se calcula solo con la suma de las partes.</p>
+        </div>
+
+        <label style="margin-top:12px">Foto de la factura / ticket</label>
+        <div class="photo-drop" onclick="document.getElementById('f-photo').click()">📷 Toca para tomar o subir foto</div>
+        <input type="file" id="f-photo" accept="image/*" capture="environment" hidden onchange="onPhoto(event)">
+        <div id="thumb-holder"></div>
+        <button type="button" class="btn ghost sm" id="ai-btn" style="margin-top:8px;display:none;width:100%;justify-content:center" onclick="readInvoiceAI()">🤖 Leer factura con IA y llenar el gasto</button>
+        <div id="ai-status" class="mini"></div>
+
+        <label>Nota</label>
+        <textarea id="f-note" placeholder="Detalle opcional (factura #, ruta...)"></textarea>
+
+        <div style="margin-top:14px">
+          <button class="btn primary" style="width:100%;justify-content:center;padding:11px" onclick="addGasto()">Guardar gasto</button>
+        </div>
+        <p class="mini">Los ingresos se registran en la pestaña <b>Tarifas</b>. Usa <b>Respaldo</b> para no perder tus datos.</p>
+      </div>
+
+      <div>
+        <div class="card" style="margin-bottom:16px">
+          <h2>📊 Gastos por categoría <span class="tag">periodo actual</span></h2>
+          <div id="cat-ranking"></div>
+        </div>
+
+        <div class="card">
+          <h2>📋 Movimientos <span class="tag" id="list-count"></span></h2>
+          <div class="filters">
+            <select id="fl-period" onchange="render()">
+              <option value="semana">Esta semana</option>
+              <option value="mes">Este mes</option>
+              <option value="mes-1">Mes pasado</option>
+              <option value="anio">Este año</option>
+              <option value="todo">Todo</option>
+            </select>
+            <select id="fl-type" onchange="render()">
+              <option value="">Todos</option>
+              <option value="ingreso">Ingresos</option>
+              <option value="gasto">Gastos</option>
+            </select>
+            <select id="fl-veh" onchange="render()"><option value="">Todo vehículo</option></select>
+            <input type="search" id="fl-q" placeholder="Buscar..." oninput="render()">
+          </div>
+          <div style="overflow-x:auto">
+            <table>
+              <thead><tr><th>Fecha</th><th>Detalle</th><th>Categoría</th><th style="text-align:right">Monto</th><th></th></tr></thead>
+              <tbody id="tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TAB MANTENIMIENTO ============ -->
+  <section id="view-mnt" class="hidden">
+    <div class="kpis">
+      <div class="kpi"><div class="label">Gasto mantenimiento</div><div class="val" id="m-total" style="color:var(--red)">L 0.00</div><div class="sub">total registrado</div></div>
+      <div class="kpi"><div class="label">Servicios</div><div class="val" id="m-count">0</div><div class="sub">mantenimientos/reparaciones</div></div>
+      <div class="kpi"><div class="label">Partes cambiadas</div><div class="val" id="m-parts">0</div><div class="sub">refacciones</div></div>
+      <div class="kpi"><div class="label">Costo promedio</div><div class="val" id="m-avg">L 0.00</div><div class="sub">por servicio</div></div>
+    </div>
+    <div class="card">
+      <h2>🔧 Historial de mantenimiento
+        <span class="tag">
+          <select id="m-veh" onchange="renderMaint()" style="width:auto;padding:4px 8px;font-size:12px"><option value="">Todos los vehículos</option></select>
+        </span>
+      </h2>
+      <div id="maint-history"></div>
+    </div>
+    <p class="mini center">Registra un mantenimiento desde la pestaña <b>Gastos</b> eligiendo la categoría Mantenimiento, Reparación o Llantas.</p>
+  </section>
+
+  <footer>🚕 Finanzas Taxi · app local, sin conexión · tus datos y fotos nunca salen de tu equipo</footer>
+</div>
+
+<div class="overlay" id="overlay" onclick="this.classList.remove('show')"><img id="overlay-img" src="" alt=""></div>
+
+<!-- Modal configuración IA -->
+<div class="overlay" id="ai-overlay">
+  <div class="card" style="max-width:440px;width:100%" onclick="event.stopPropagation()">
+    <h2>🤖 Lectura de facturas con IA</h2>
+    <p class="mini" style="margin-top:0">Pega tu <b>clave de API de Anthropic (Claude)</b>. Se guarda solo en este navegador y se usa para leer la foto de la factura y llenar el gasto automáticamente.</p>
+    <label>Clave de API (empieza por <code>sk-ant-</code>)</label>
+    <input type="password" id="ai-key" placeholder="sk-ant-...">
+    <label>Modelo</label>
+    <select id="ai-model">
+      <option value="claude-opus-4-8">Claude Opus 4.8 (más preciso)</option>
+      <option value="claude-haiku-4-5">Claude Haiku 4.5 (más barato)</option>
+    </select>
+    <p class="mini">Consíguela en <b>console.anthropic.com → API Keys</b>. El uso lo cobra Anthropic a tu cuenta (unos centavos por factura).</p>
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button class="btn primary" style="flex:1;justify-content:center" onclick="saveAI()">Guardar</button>
+      <button class="btn ghost" onclick="document.getElementById('ai-overlay').classList.remove('show')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ================= Datos ================= */
+const KEY='finanzas_taxi_v3';
+const MOTOS_KEY='taxi_motos';
+const MAINT_CATS=['Mantenimiento','Reparación','Llantas'];
+const GASTO_CATS=['Combustible','Mantenimiento','Reparación','Llantas','Lavado','Seguro','Impuestos / Permisos','Pago mano de obra','Comisión app','Multas','Otros gastos'];
+const DAYS=['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+
+let state={ txs:load(), week:getMonday(new Date()) };
+let pendingPhoto=null;
+const photoCache={};
+
+function load(){ try{ return JSON.parse(localStorage.getItem(KEY))||[] }catch(e){ return [] } }
+function save(){ localStorage.setItem(KEY, JSON.stringify(state.txs)) }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6) }
+function money(n){ return (n<0?'-':'')+'L '+Math.abs(n).toLocaleString('es-HN',{minimumFractionDigits:2,maximumFractionDigits:2}) }
+function esc(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])) }
+function isoLocal(d){ const x=new Date(d); return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0'); }
+function todayISO(){ return isoLocal(new Date()) }
+function fmtDate(s){ return new Date(s+'T00:00:00').toLocaleDateString('es-HN',{day:'2-digit',month:'short',year:'2-digit'}) }
+function getMonday(d){ const x=new Date(d); const day=(x.getDay()+6)%7; x.setDate(x.getDate()-day); x.setHours(0,0,0,0); return x; }
+function addDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
+
+/* ================= Motos ================= */
+function loadMotos(){ try{ return JSON.parse(localStorage.getItem(MOTOS_KEY))||[] }catch(e){ return [] } }
+function saveMotos(a){ localStorage.setItem(MOTOS_KEY, JSON.stringify(a)) }
+function currentMotos(){ const set=new Set(loadMotos()); state.txs.filter(t=>t.cat==='Tarifas'&&t.veh).forEach(t=>set.add(t.veh)); return [...set].sort(); }
+function addMoto(){ const i=document.getElementById('new-moto'); const n=i.value.trim(); if(!n) return; const a=loadMotos(); if(!a.includes(n)) a.push(n); saveMotos(a); i.value=''; renderTarifas(); }
+function delMoto(n){ if(!confirm('¿Quitar "'+n+'" de la lista? (No borra los ingresos ya registrados)')) return; saveMotos(loadMotos().filter(x=>x!==n)); renderTarifas(); }
+
+/* ================= Tarifas semanales ================= */
+function weekDates(){ return [...Array(7)].map((_,i)=>isoLocal(addDays(state.week,i))); }
+function findTarifa(veh,date){ return state.txs.find(t=>t.type==='ingreso'&&t.cat==='Tarifas'&&t.veh===veh&&t.date===date); }
+function tarifaVal(veh,date){ const t=findTarifa(veh,date); return t?t.amount:0; }
+function setTarifaRaw(veh,date,val){
+  val=Math.round((parseFloat(val)||0)*100)/100;
+  const ex=findTarifa(veh,date);
+  if(val>0){ if(ex) ex.amount=val; else state.txs.push({id:uid(),type:'ingreso',amount:val,date,cat:'Tarifas',veh,drv:'',note:'',parts:[],odo:null,shop:'',hasPhoto:false}); }
+  else if(ex){ state.txs=state.txs.filter(t=>t!==ex); }
+}
+function setTarifa(veh,date,val){ setTarifaRaw(veh,date,val); save(); renderTarifas(); }
+function fillWeek(){
+  const v=parseFloat(document.getElementById('def-tarifa').value)||0;
+  if(v<=0){ alert('Pon una tarifa base mayor a 0.'); return; }
+  const motos=currentMotos();
+  if(!motos.length){ alert('Primero agrega al menos una moto.'); return; }
+  const dates=weekDates();
+  motos.forEach(mo=>dates.forEach(dt=>{ if(!findTarifa(mo,dt)) setTarifaRaw(mo,dt,v); }));
+  save(); renderTarifas();
+}
+function changeWeek(n){ state.week=addDays(state.week,n*7); renderTarifas(); }
+function thisWeek(){ state.week=getMonday(new Date()); renderTarifas(); }
+
+function renderTarifas(){
+  const dates=weekDates();
+  const motos=currentMotos();
+  const start=state.week, end=addDays(state.week,6);
+  const fmt=d=>new Date(d).toLocaleDateString('es-HN',{day:'2-digit',month:'short'});
+  document.getElementById('week-label').textContent='Semana del '+fmt(start)+' al '+fmt(end);
+  document.getElementById('week-range').textContent=fmt(start)+' – '+fmt(end);
+
+  // encabezado
+  let html='<thead><tr><th class="moto">Moto</th>';
+  DAYS.forEach((d,i)=>{ const dt=new Date(dates[i]+'T00:00:00'); const cls=i===6?'dom':(i===5?'sab':''); html+=`<th class="day ${cls}">${d}<small>${dt.getDate()}/${dt.getMonth()+1}</small></th>`; });
+  html+='<th class="rowtot">Total</th></tr></thead><tbody>';
+
+  const colTot=Array(7).fill(0); let grand=0;
+  if(!motos.length){
+    html+='<tr><td class="moto muted">—</td><td colspan="8" class="empty" style="text-align:center">Agrega tu primera moto arriba ☝️</td></tr>';
+  } else {
+    motos.forEach(mo=>{
+      let rowTot=0;
+      html+=`<tr><td class="moto">${esc(mo)}<button class="rm" title="Quitar de la lista" onclick="delMoto('${esc(mo).replace(/'/g,"\\'")}')">✕</button></td>`;
+      dates.forEach((dt,i)=>{
+        const v=tarifaVal(mo,dt); rowTot+=v; colTot[i]+=v;
+        html+=`<td><input type="number" min="0" step="1" value="${v?v:''}" placeholder="0" onchange="setTarifa('${esc(mo).replace(/'/g,"\\'")}','${dt}',this.value)"></td>`;
+      });
+      grand+=rowTot;
+      html+=`<td class="rowtot">${money(rowTot)}</td></tr>`;
+    });
+  }
+  html+='</tbody><tfoot><tr><td class="moto">Total día</td>';
+  colTot.forEach(c=>{ html+=`<td class="coltot">${c?money(c).replace('L ','L '):'—'}</td>`; });
+  html+=`<td class="rowtot">${money(grand)}</td></tr></tfoot>`;
+  document.getElementById('tgrid').innerHTML=html;
+
+  const daysActive=colTot.filter(c=>c>0).length;
+  document.getElementById('t-total').textContent=money(grand);
+  document.getElementById('t-avg').textContent=money(grand/7);
+  document.getElementById('t-motos').textContent=motos.length;
+  document.getElementById('t-days').textContent=daysActive;
+}
+
+/* ================= IndexedDB para fotos ================= */
+let _db=null;
+function db(){ return new Promise((res,rej)=>{ if(_db) return res(_db);
+  const r=indexedDB.open('finanzas_taxi_fotos',1);
+  r.onupgradeneeded=()=>r.result.createObjectStore('photos');
+  r.onsuccess=()=>{ _db=r.result; res(_db) }; r.onerror=()=>rej(r.error); }); }
+async function dbSet(id,data){ const d=await db(); return new Promise(r=>{ const t=d.transaction('photos','readwrite'); t.objectStore('photos').put(data,id); t.oncomplete=r }); }
+async function dbDel(id){ const d=await db(); return new Promise(r=>{ const t=d.transaction('photos','readwrite'); t.objectStore('photos').delete(id); t.oncomplete=r }); }
+async function dbAll(){ const d=await db(); return new Promise(res=>{ const out={}; const t=d.transaction('photos','readonly'); const cur=t.objectStore('photos').openCursor(); cur.onsuccess=e=>{ const c=e.target.result; if(c){ out[c.key]=c.value; c.continue() } else res(out) }; }); }
+
+/* ================= Foto ================= */
+function compress(file){ return new Promise(res=>{ const r=new FileReader();
+  r.onload=()=>{ const img=new Image(); img.onload=()=>{ const max=1400; let w=img.width,h=img.height;
+    if(w>h && w>max){ h=Math.round(h*max/w); w=max } else if(h>max){ w=Math.round(w*max/h); h=max }
+    const c=document.createElement('canvas'); c.width=w; c.height=h; c.getContext('2d').drawImage(img,0,0,w,h);
+    res(c.toDataURL('image/jpeg',0.7)); }; img.src=r.result; }; r.readAsDataURL(file); }); }
+async function onPhoto(e){ const f=e.target.files[0]; if(!f) return; pendingPhoto=await compress(f); e.target.value=''; renderThumb(); }
+function renderThumb(){
+  const h=document.getElementById('thumb-holder');
+  h.innerHTML = pendingPhoto ? `<div class="thumb-wrap"><img class="thumb" src="${pendingPhoto}"><button class="thumb-x" onclick="clearPhoto()">✕</button></div>` : '';
+  document.getElementById('ai-btn').style.display = pendingPhoto ? 'inline-flex' : 'none';
+  if(!pendingPhoto) document.getElementById('ai-status').textContent='';
+}
+function clearPhoto(){ pendingPhoto=null; renderThumb() }
+
+/* ================= Lectura de facturas con IA ================= */
+const AI_KEY='taxi_ai_cfg';
+function loadAICfg(){ try{ return JSON.parse(localStorage.getItem(AI_KEY))||{} }catch(e){ return {} } }
+function openAI(){ const c=loadAICfg(); document.getElementById('ai-key').value=c.key||''; document.getElementById('ai-model').value=c.model||'claude-opus-4-8'; document.getElementById('ai-overlay').classList.add('show'); }
+function saveAI(){ const key=document.getElementById('ai-key').value.trim(); const model=document.getElementById('ai-model').value; localStorage.setItem(AI_KEY, JSON.stringify({key,model})); document.getElementById('ai-overlay').classList.remove('show'); }
+async function readInvoiceAI(){
+  if(!pendingPhoto) return;
+  const cfg=loadAICfg();
+  if(!cfg.key){ openAI(); return; }
+  const st=document.getElementById('ai-status'); st.style.color='var(--muted)'; st.textContent='🤖 Leyendo la factura...';
+  const m=pendingPhoto.match(/^data:(image\/\w+);base64,(.+)$/);
+  if(!m){ st.textContent='Imagen no válida.'; return; }
+  const prompt=`Eres un asistente que extrae datos de facturas o tickets de GASTOS de una empresa de mototaxis en Honduras (moneda Lempira, L). Analiza la imagen y devuelve SOLO un objeto JSON válido, sin markdown ni explicación, con esta forma exacta:
+{"fecha":"YYYY-MM-DD","monto":0,"categoria":"","taller":"","partes":[{"name":"","cost":0}],"nota":""}
+Reglas:
+- "categoria" debe ser EXACTAMENTE una de: Combustible, Mantenimiento, Reparación, Llantas, Lavado, Seguro, Impuestos / Permisos, Pago mano de obra, Comisión app, Multas, Otros gastos.
+- "monto" es el total a pagar, número sin símbolo.
+- "partes": refacciones o servicios detallados con su costo; [] si no hay detalle.
+- "taller": nombre del comercio; "nota": número de factura o breve descripción.
+- Si un dato no aparece, usa null o "".`;
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'content-type':'application/json','x-api-key':cfg.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:cfg.model||'claude-opus-4-8',max_tokens:1024,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:m[1],data:m[2]}},{type:'text',text:prompt}]}]})
+    });
+    if(!res.ok){ const t=await res.text(); st.style.color='var(--red)'; st.textContent = res.status===401?'Clave de API inválida. Revisa 🤖 IA.':'Error de la IA ('+res.status+'). '+t.slice(0,120); return; }
+    const data=await res.json();
+    const txt=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('');
+    const jm=txt.match(/\{[\s\S]*\}/); if(!jm) throw new Error('sin json');
+    fillFromAI(JSON.parse(jm[0]));
+    st.style.color='var(--green)'; st.textContent='✅ Datos cargados. Revísalos y guarda el gasto.';
+  }catch(err){ st.style.color='var(--red)'; st.textContent='No se pudo leer la factura: '+err.message; }
+}
+function fillFromAI(d){
+  if(d.categoria && GASTO_CATS.includes(d.categoria)) document.getElementById('f-cat').value=d.categoria;
+  onCatChange();
+  if(d.monto) document.getElementById('f-amount').value=Number(d.monto).toFixed(2);
+  if(d.fecha && /^\d{4}-\d{2}-\d{2}$/.test(d.fecha)) document.getElementById('f-date').value=d.fecha;
+  const note=[d.nota,d.taller].filter(Boolean).join(' · ');
+  if(note) document.getElementById('f-note').value=note;
+  if(!document.getElementById('maint-box').classList.contains('hidden')){
+    if(d.taller) document.getElementById('f-shop').value=d.taller;
+    document.getElementById('parts').innerHTML='';
+    (d.partes||[]).forEach(p=>addPartRow(p.name, p.cost||''));
+    if(!(d.partes||[]).length) addPartRow();
+  }
+}
+
+/* ================= Formulario de gasto ================= */
+function onCatChange(){
+  const cat=document.getElementById('f-cat').value;
+  const isM=MAINT_CATS.includes(cat);
+  document.getElementById('maint-box').classList.toggle('hidden', !isM);
+  if(isM && document.getElementById('parts').children.length===0) addPartRow();
+}
+function addPartRow(name='',cost=''){
+  const div=document.createElement('div'); div.className='part-row';
+  div.innerHTML=`<input placeholder="Ej. Balatas, aceite, filtro" value="${esc(name)}" oninput="sumParts()">
+    <input type="number" placeholder="Costo" step="0.01" min="0" value="${cost}" oninput="sumParts()">
+    <button type="button" class="rm" onclick="this.parentNode.remove();sumParts()">✕</button>`;
+  document.getElementById('parts').appendChild(div);
+}
+function readParts(){ return [...document.querySelectorAll('#parts .part-row')].map(r=>{ const i=r.querySelectorAll('input'); return { name:i[0].value.trim(), cost:parseFloat(i[1].value)||0 }; }).filter(p=>p.name); }
+function sumParts(){ const s=[...document.querySelectorAll('#parts .part-row')].reduce((a,r)=>a+(parseFloat(r.querySelectorAll('input')[1].value)||0),0); const f=document.getElementById('f-amount'); if(s>0) f.value=s.toFixed(2); else if(document.querySelectorAll('#parts .part-row').length) f.value=''; }
+async function addGasto(){
+  const amount=parseFloat(document.getElementById('f-amount').value);
+  if(!amount||amount<=0){ alert('Ingresa un monto válido.'); return; }
+  const cat=document.getElementById('f-cat').value;
+  const isM=MAINT_CATS.includes(cat);
+  const tx={ id:uid(), type:'gasto', amount:Math.round(amount*100)/100,
+    date:document.getElementById('f-date').value||todayISO(), cat,
+    veh:document.getElementById('f-veh').value.trim(), drv:document.getElementById('f-drv').value.trim(),
+    note:document.getElementById('f-note').value.trim(),
+    parts:isM?readParts():[], odo:null,
+    shop:isM?document.getElementById('f-shop').value.trim():'', hasPhoto:!!pendingPhoto };
+  if(pendingPhoto){ await dbSet(tx.id,pendingPhoto); photoCache[tx.id]=pendingPhoto; }
+  state.txs.push(tx); save();
+  document.getElementById('f-amount').value=''; document.getElementById('f-note').value='';
+  document.getElementById('f-shop').value='';
+  document.getElementById('parts').innerHTML=''; clearPhoto(); onCatChange();
+  renderAll();
+}
+async function delTx(id){
+  if(!confirm('¿Eliminar este movimiento?')) return;
+  const tx=state.txs.find(t=>t.id===id);
+  if(tx&&tx.hasPhoto){ await dbDel(id); delete photoCache[id]; }
+  state.txs=state.txs.filter(t=>t.id!==id); save(); renderAll();
+}
+function viewPhoto(id){ const src=photoCache[id]; if(!src) return; document.getElementById('overlay-img').src=src; document.getElementById('overlay').classList.add('show'); }
+
+/* ================= Periodo ================= */
+function inPeriod(dateStr,period){
+  const d=new Date(dateStr+'T00:00:00'), now=new Date();
+  if(period==='todo') return true;
+  if(period==='anio') return d.getFullYear()===now.getFullYear();
+  if(period==='mes') return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth();
+  if(period==='mes-1'){ const m=new Date(now.getFullYear(),now.getMonth()-1,1); return d.getFullYear()===m.getFullYear()&&d.getMonth()===m.getMonth(); }
+  if(period==='semana'){ const m=getMonday(now), e=addDays(m,6); return d>=m && d<=addDays(e,0.99); }
+  return true;
+}
+
+/* ================= Render Gastos ================= */
+function render(){
+  const period=document.getElementById('fl-period').value;
+  const fType=document.getElementById('fl-type').value;
+  const fVeh=document.getElementById('fl-veh').value;
+  const q=document.getElementById('fl-q').value.toLowerCase().trim();
+
+  const pTx=state.txs.filter(t=>inPeriod(t.date,period));
+  const inc=pTx.filter(t=>t.type==='ingreso').reduce((s,t)=>s+t.amount,0);
+  const exp=pTx.filter(t=>t.type==='gasto').reduce((s,t)=>s+t.amount,0);
+  const bal=inc-exp;
+  document.getElementById('k-in').textContent=money(inc);
+  document.getElementById('k-ex').textContent=money(exp);
+  const kb=document.getElementById('k-bal'); kb.textContent=money(bal); kb.className='val '+(bal>=0?'pos':'neg');
+  document.getElementById('k-cnt').textContent=pTx.length;
+  const vehSet=new Set(state.txs.map(t=>t.veh).filter(Boolean));
+  document.getElementById('k-veh').textContent=vehSet.size+' vehículo'+(vehSet.size===1?'':'s');
+
+  const byCat={};
+  pTx.filter(t=>t.type==='gasto').forEach(t=>{ byCat[t.cat]=(byCat[t.cat]||0)+t.amount });
+  const ranked=Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
+  const max=ranked.length?ranked[0][1]:0;
+  document.getElementById('cat-ranking').innerHTML = ranked.length ? ranked.map(([c,v])=>`
+    <div class="cat-row"><div class="nm">${esc(c)}</div><div class="bar"><i style="width:${max?(v/max*100):0}%"></i></div><div class="v">${money(v)}</div></div>`).join('')
+    : '<div class="empty">Aún no hay gastos en este periodo.</div>';
+
+  let rows=pTx.slice();
+  if(fType) rows=rows.filter(t=>t.type===fType);
+  if(fVeh) rows=rows.filter(t=>t.veh===fVeh);
+  if(q) rows=rows.filter(t=>((t.note||'')+' '+(t.cat||'')+' '+(t.veh||'')+' '+(t.drv||'')).toLowerCase().includes(q));
+  rows.sort((a,b)=> b.date.localeCompare(a.date)||b.id.localeCompare(a.id));
+
+  document.getElementById('tbody').innerHTML = rows.length ? rows.map(t=>`
+    <tr>
+      <td class="muted">${fmtDate(t.date)}</td>
+      <td>
+        <div>${t.veh?('<b>'+esc(t.veh)+'</b>'):'<span class="muted">—</span>'} ${t.drv?('· '+esc(t.drv)):''}
+          ${t.hasPhoto?`<a class="clip" title="Ver factura" onclick="viewPhoto('${t.id}')">📎</a>`:''}</div>
+        ${t.parts&&t.parts.length?`<div class="muted" style="font-size:12px">🔧 ${t.parts.map(p=>esc(p.name)).join(', ')}</div>`:''}
+        ${t.note?('<div class="muted" style="font-size:12px">'+esc(t.note)+'</div>'):''}
+      </td>
+      <td><span class="pill">${esc(t.cat)}</span></td>
+      <td class="amt ${t.type==='ingreso'?'in':'ex'}">${t.type==='ingreso'?'+':'−'}${money(t.amount).replace('-','')}</td>
+      <td><button class="del" title="Eliminar" onclick="delTx('${t.id}')">✕</button></td>
+    </tr>`).join('') : '<tr><td colspan="5" class="empty">No hay movimientos que coincidan.</td></tr>';
+  document.getElementById('list-count').textContent = rows.length+' movimiento'+(rows.length===1?'':'s');
+
+  const veh=[...new Set([...currentMotos(), ...state.txs.map(t=>t.veh).filter(Boolean)])].sort();
+  const drv=[...new Set(state.txs.map(t=>t.drv).filter(Boolean))].sort();
+  document.getElementById('veh-list').innerHTML=veh.map(v=>`<option value="${esc(v)}">`).join('');
+  document.getElementById('drv-list').innerHTML=drv.map(v=>`<option value="${esc(v)}">`).join('');
+  const flv=document.getElementById('fl-veh'), cur=flv.value;
+  flv.innerHTML='<option value="">Todo vehículo</option>'+veh.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
+  flv.value=cur;
+}
+
+/* ================= Render Mantenimiento ================= */
+function renderMaint(){
+  const maint=state.txs.filter(t=>t.type==='gasto'&&(MAINT_CATS.includes(t.cat)||(t.parts&&t.parts.length)));
+  const veh=[...new Set(maint.map(t=>t.veh).filter(Boolean))].sort();
+  const sel=document.getElementById('m-veh'), cur=sel.value;
+  sel.innerHTML='<option value="">Todos los vehículos</option>'+veh.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
+  sel.value=cur;
+  let list = cur ? maint.filter(t=>t.veh===cur) : maint;
+  list.sort((a,b)=> b.date.localeCompare(a.date)||b.id.localeCompare(a.id));
+  const total=list.reduce((s,t)=>s+t.amount,0);
+  const partsCount=list.reduce((s,t)=>s+(t.parts?t.parts.length:0),0);
+  document.getElementById('m-total').textContent=money(total);
+  document.getElementById('m-count').textContent=list.length;
+  document.getElementById('m-parts').textContent=partsCount;
+  document.getElementById('m-avg').textContent=money(list.length?total/list.length:0);
+  document.getElementById('maint-history').innerHTML = list.length ? list.map(t=>`
+    <div class="mcard">
+      <div class="top">
+        ${t.hasPhoto?`<img class="mthumb" src="${photoCache[t.id]||''}" onclick="viewPhoto('${t.id}')" alt="factura">`:''}
+        <div>
+          <div class="veh">${t.veh?esc(t.veh):'Sin vehículo'} <span class="pill">${esc(t.cat)}</span></div>
+          <div class="meta">${fmtDate(t.date)}${t.shop?(' · '+esc(t.shop)):''}</div>
+        </div>
+        <div class="tot">${money(t.amount)}</div>
+      </div>
+      ${t.parts&&t.parts.length?`<ul class="parts-list">${t.parts.map(p=>`<li><span>🔩 ${esc(p.name)}</span><span class="pc">${p.cost?money(p.cost):'—'}</span></li>`).join('')}</ul>`:'<div class="muted" style="font-size:12.5px">Sin detalle de refacciones.</div>'}
+      ${t.note?`<div class="muted" style="font-size:12px;margin-top:8px">📝 ${esc(t.note)}</div>`:''}
+    </div>`).join('') : '<div class="empty">Aún no hay mantenimientos registrados.</div>';
+}
+
+function renderAll(){ renderTarifas(); render(); renderMaint(); }
+
+/* ================= Tabs ================= */
+function showTab(t){
+  ['tar','fin','mnt'].forEach(x=>{
+    document.getElementById('view-'+x).classList.toggle('hidden', x!==t);
+    document.getElementById('tab-'+x).classList.toggle('active', x===t);
+  });
+}
+
+/* ================= Exportar / Importar ================= */
+function exportCSV(){
+  const rows=[['Fecha','Tipo','Categoria','Vehiculo','Conductor','Taller','Partes','Nota','Monto']];
+  state.txs.slice().sort((a,b)=>a.date.localeCompare(b.date)).forEach(t=>
+    rows.push([t.date,t.type,t.cat,t.veh,t.drv,t.shop||'',
+      (t.parts||[]).map(p=>p.name+(p.cost?` (${p.cost})`:'')).join(' | '),
+      (t.note||'').replace(/\n/g,' '),(t.type==='gasto'?'-':'')+t.amount]));
+  const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  download('finanzas_taxi_'+todayISO()+'.csv','﻿'+csv,'text/csv');
+}
+async function exportJSON(){ const photos=await dbAll(); download('respaldo_finanzas_taxi_'+todayISO()+'.json', JSON.stringify({v:3,txs:state.txs,motos:loadMotos(),photos},null,2),'application/json'); }
+function importJSON(e){
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=async()=>{ try{
+    const data=JSON.parse(r.result);
+    const txs=Array.isArray(data)?data:data.txs;
+    const photos=Array.isArray(data)?{}:(data.photos||{});
+    if(!Array.isArray(txs)) throw 0;
+    if(confirm('¿Reemplazar los datos actuales por los del respaldo ('+txs.length+' movimientos)?')){
+      state.txs=txs; save();
+      if(!Array.isArray(data)&&data.motos) saveMotos(data.motos);
+      for(const k in photoCache) delete photoCache[k];
+      for(const id in photos){ await dbSet(id,photos[id]); photoCache[id]=photos[id]; }
+      renderAll();
+    }
+  }catch(err){ alert('Archivo no válido.') } e.target.value=''; };
+  r.readAsText(f);
+}
+function download(name,content,type){ const b=new Blob([content],{type}), u=URL.createObjectURL(b); const a=document.createElement('a'); a.href=u; a.download=name; a.click(); URL.revokeObjectURL(u); }
+
+/* ================= Init ================= */
+(async function(){
+  document.getElementById('f-date').value=todayISO();
+  document.getElementById('f-cat').innerHTML=GASTO_CATS.map(c=>`<option value="${c}">${c}</option>`).join('');
+  onCatChange();
+  Object.assign(photoCache, await dbAll());
+  renderAll();
+})();
+</script>
+</body>
+</html>
