@@ -2,8 +2,16 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Finanzas Taxi — Control de una empresa pequeña</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#f5b301">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Finanzas Taxi">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
 <style>
   :root{
     --bg:#0f1419; --panel:#1a2028; --panel2:#212a34; --line:#2c3742;
@@ -809,6 +817,11 @@ function download(name,content,type){ const b=new Blob([content],{type}), u=URL.
   Object.assign(photoCache, await dbAll());
   renderAll();
 })();
+
+/* Registrar service worker (para instalar como app y funcionar sin internet) */
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
 </script>
 </body>
 </html>
