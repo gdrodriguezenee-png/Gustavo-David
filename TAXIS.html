@@ -160,23 +160,23 @@
     <div class="kpis">
       <div class="kpi income"><div class="label">Total de la semana</div><div class="val" id="t-total">L 0.00</div><div class="sub">tarifas cobradas</div></div>
       <div class="kpi"><div class="label">Promedio por día</div><div class="val" id="t-avg">L 0.00</div><div class="sub">de la semana</div></div>
-      <div class="kpi"><div class="label">Motos</div><div class="val" id="t-motos">0</div><div class="sub">en la lista</div></div>
+      <div class="kpi"><div class="label">Vehículos</div><div class="val" id="t-motos">0</div><div class="sub">en la lista</div></div>
       <div class="kpi"><div class="label">Días con cobro</div><div class="val" id="t-days">0</div><div class="sub">esta semana</div></div>
     </div>
 
     <div class="card">
-      <h2>🛵 Tarifa diaria por moto <span class="tag" id="week-range"></span></h2>
+      <h2>🛵 Tarifa diaria por vehículo <span class="tag" id="week-range"></span></h2>
       <div class="filters" style="align-items:center">
-        <input type="text" id="new-moto" placeholder="Nombre / placa de la moto (ej. Moto 01)" style="flex:2" onkeydown="if(event.key==='Enter')addMoto()">
-        <button class="btn sm" onclick="addMoto()">＋ Agregar moto</button>
+        <input type="text" id="new-moto" placeholder="Nombre / placa del vehículo (ej. Vehículo 01)" style="flex:2" onkeydown="if(event.key==='Enter')addMoto()">
+        <button class="btn sm" onclick="addMoto()">＋ Agregar vehículo</button>
         <span class="muted" style="font-size:12px">Tarifa base</span>
         <input type="number" id="def-tarifa" value="400" min="0" style="width:90px;flex:none">
-        <button class="btn sm ghost" onclick="fillWeek()">Llenar semana</button>
+        <button class="btn sm ghost" onclick="fillWeek()">Llenar Lun–Sáb</button>
       </div>
       <div class="tgrid-wrap">
         <table class="tgrid" id="tgrid"></table>
       </div>
-      <p class="mini">Escribe lo cobrado cada día (varía según el día). Deja en blanco un día sin trabajo. <b>Llenar semana</b> pone la tarifa base en los días vacíos.</p>
+      <p class="mini">Escribe lo cobrado cada día (varía según el día). Deja en blanco un día sin trabajo. <b>Llenar Lun–Sáb</b> pone la tarifa base en los días vacíos de lunes a sábado (el domingo queda libre).</p>
     </div>
   </section>
 
@@ -203,8 +203,8 @@
 
         <div class="row">
           <div>
-            <label>Vehículo / Moto</label>
-            <input type="text" id="f-veh" list="veh-list" placeholder="Ej. Moto 01">
+            <label>Vehículo</label>
+            <input type="text" id="f-veh" list="veh-list" placeholder="Ej. Vehículo 01">
             <datalist id="veh-list"></datalist>
           </div>
           <div>
@@ -366,8 +366,8 @@ function fillWeek(){
   const v=parseFloat(document.getElementById('def-tarifa').value)||0;
   if(v<=0){ alert('Pon una tarifa base mayor a 0.'); return; }
   const motos=currentMotos();
-  if(!motos.length){ alert('Primero agrega al menos una moto.'); return; }
-  const dates=weekDates();
+  if(!motos.length){ alert('Primero agrega al menos un vehículo.'); return; }
+  const dates=weekDates().slice(0,6); // Lunes a Sábado (sin domingo)
   motos.forEach(mo=>dates.forEach(dt=>{ if(!findTarifa(mo,dt)) setTarifaRaw(mo,dt,v); }));
   save(); renderTarifas();
 }
@@ -383,13 +383,13 @@ function renderTarifas(){
   document.getElementById('week-range').textContent=fmt(start)+' – '+fmt(end);
 
   // encabezado
-  let html='<thead><tr><th class="moto">Moto</th>';
+  let html='<thead><tr><th class="moto">Vehículo</th>';
   DAYS.forEach((d,i)=>{ const dt=new Date(dates[i]+'T00:00:00'); const cls=i===6?'dom':(i===5?'sab':''); html+=`<th class="day ${cls}">${d}<small>${dt.getDate()}/${dt.getMonth()+1}</small></th>`; });
   html+='<th class="rowtot">Total</th></tr></thead><tbody>';
 
   const colTot=Array(7).fill(0); let grand=0;
   if(!motos.length){
-    html+='<tr><td class="moto muted">—</td><td colspan="8" class="empty" style="text-align:center">Agrega tu primera moto arriba ☝️</td></tr>';
+    html+='<tr><td class="moto muted">—</td><td colspan="8" class="empty" style="text-align:center">Agrega tu primer vehículo arriba ☝️</td></tr>';
   } else {
     motos.forEach(mo=>{
       let rowTot=0;
@@ -451,7 +451,7 @@ async function readInvoiceAI(){
   const st=document.getElementById('ai-status'); st.style.color='var(--muted)'; st.textContent='🤖 Leyendo la factura...';
   const m=pendingPhoto.match(/^data:(image\/\w+);base64,(.+)$/);
   if(!m){ st.textContent='Imagen no válida.'; return; }
-  const prompt=`Eres un asistente que extrae datos de facturas o tickets de GASTOS de una empresa de mototaxis en Honduras (moneda Lempira, L). Analiza la imagen y devuelve SOLO un objeto JSON válido, sin markdown ni explicación, con esta forma exacta:
+  const prompt=`Eres un asistente que extrae datos de facturas o tickets de GASTOS de una empresa de taxis en Honduras (moneda Lempira, L). Analiza la imagen y devuelve SOLO un objeto JSON válido, sin markdown ni explicación, con esta forma exacta:
 {"fecha":"YYYY-MM-DD","monto":0,"categoria":"","taller":"","partes":[{"name":"","cost":0}],"nota":""}
 Reglas:
 - "categoria" debe ser EXACTAMENTE una de: Combustible, Mantenimiento, Reparación, Llantas, Lavado, Seguro, Impuestos / Permisos, Pago mano de obra, Comisión app, Multas, Otros gastos.
