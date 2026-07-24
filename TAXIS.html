@@ -842,11 +842,18 @@ function openNube(){
   if(c.code) setNubeStatus('Configurada. Código: '+c.code, true);
 }
 function saveNube(){
-  const raw=document.getElementById('nube-config').value.trim();
+  let raw=document.getElementById('nube-config').value;
   const code=document.getElementById('nube-code').value.trim();
   if(!raw||!code){ setNubeStatus('Falta el código o la configuración.', false); return; }
-  let cfg; try{ const m=raw.match(/\{[\s\S]*\}/); cfg=(new Function('return ('+m[0]+')'))(); }catch(e){ setNubeStatus('La configuración no es válida.', false); return; }
-  if(!cfg||!cfg.projectId){ setNubeStatus('Falta "projectId" en la configuración.', false); return; }
+  // Normalizar comillas "chuecas" que ponen algunos teclados de celular
+  raw=raw.replace(/[“”„″]/g,'"').replace(/[‘’′]/g,"'").trim();
+  let cfg;
+  try{
+    const m=raw.match(/\{[\s\S]*\}/);
+    if(!m) throw new Error('sin objeto');
+    cfg=(new Function('return ('+m[0]+')'))();
+  }catch(e){ setNubeStatus('La configuración no es válida. Cópiala completa otra vez desde Firebase.', false); return; }
+  if(!cfg||!cfg.projectId){ setNubeStatus('Falta "projectId". Copia el bloque completo.', false); return; }
   localStorage.setItem('taxi_nube', JSON.stringify({config:cfg, code}));
   firstTxSnap=true; setNubeStatus('Guardado. Conectando...', true);
   initNube();
