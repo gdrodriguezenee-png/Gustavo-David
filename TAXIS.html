@@ -348,20 +348,15 @@
 
 <!-- Modal sincronización en la nube -->
 <div class="overlay" id="nube-overlay">
-  <div class="card" style="max-width:480px;width:100%" onclick="event.stopPropagation()">
-    <h2>☁️ Sincronizar en la nube</h2>
-    <p class="mini" style="margin-top:0">Comparte los datos entre la compu y el celular. Usa el <b>mismo código de empresa</b> y la <b>misma configuración de Firebase</b> en todos los dispositivos.</p>
-    <label>Código de empresa (igual en todos los dispositivos)</label>
-    <input type="text" id="nube-code" placeholder="ej. gustavo-taxis">
-    <label>Configuración de Firebase</label>
-    <textarea id="nube-config" style="min-height:120px;font-family:monospace;font-size:12px" placeholder='{ apiKey: "...", authDomain: "...", projectId: "...", ... }'></textarea>
-    <div id="nube-status" class="mini"></div>
-    <div style="display:flex;gap:8px;margin-top:14px">
-      <button class="btn primary" style="flex:1;justify-content:center" onclick="saveNube()">Guardar y conectar</button>
-      <button class="btn ghost" onclick="document.getElementById('nube-overlay').classList.remove('show')">Cerrar</button>
+  <div class="card" style="max-width:420px;width:100%" onclick="event.stopPropagation()">
+    <h2>☁️ Sincronización en la nube</h2>
+    <p class="mini" style="margin-top:0">Los datos se comparten entre todos los dispositivos que inicien sesión con la <b>misma cuenta</b>. Las <b>fotos</b> se quedan en cada dispositivo.</p>
+    <div id="nube-status" class="mini" style="margin:12px 0"></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn primary" style="flex:1;justify-content:center" onclick="openLogin()">Iniciar sesión</button>
+      <button class="btn ghost" onclick="logoutNube()">Cerrar sesión</button>
     </div>
-    <p class="mini">Las <b>fotos</b> de facturas se quedan en cada dispositivo; los números y registros sí se comparten. Tras guardar por primera vez, recarga la app en cada dispositivo.</p>
-    <div style="margin-top:10px;text-align:center"><button class="btn ghost sm" onclick="logoutNube()">Cerrar sesión</button></div>
+    <button class="btn ghost sm" style="width:100%;margin-top:8px;justify-content:center" onclick="document.getElementById('nube-overlay').classList.remove('show')">Cerrar</button>
   </div>
 </div>
 
@@ -847,17 +842,24 @@ function download(name,content,type){ const b=new Blob([content],{type}), u=URL.
 
 /* ================= Sincronización en la nube (Firebase) ================= */
 let baseDoc=null, txCol=null, syncedTxs={}, firstTxSnap=true, unsubTx=null, unsubBase=null, auth=null, unsubAuth=null;
+const FIREBASE_CONFIG={
+  apiKey:"AIzaSyCvL48BdJPbFVWoMJtM2SLRDhItMqp5Ogc",
+  authDomain:"finanzas-taxi-f7a0c.firebaseapp.com",
+  projectId:"finanzas-taxi-f7a0c",
+  storageBucket:"finanzas-taxi-f7a0c.firebasestorage.app",
+  messagingSenderId:"430445076013",
+  appId:"1:430445076013:web:3958e72490484ad2b162a4"
+};
+const EMPRESA_CODE="gustavo-taxis";
 function nubeCfg(){ try{ return JSON.parse(localStorage.getItem('taxi_nube'))||null }catch(e){ return null } }
 function setNubeStatus(msg, ok){
   const s=document.getElementById('nube-status'); if(s){ s.textContent=msg; s.style.color= ok?'var(--green)':'var(--red)'; }
   const b=document.getElementById('nube-btn'); if(b){ b.style.color= ok?'var(--green)':''; b.style.borderColor= ok?'var(--green)':''; }
 }
 function openNube(){
-  const c=nubeCfg()||{};
-  document.getElementById('nube-code').value=c.code||'';
-  document.getElementById('nube-config').value=c.config?JSON.stringify(c.config,null,2):'';
   document.getElementById('nube-overlay').classList.add('show');
-  if(c.code) setNubeStatus('Configurada. Código: '+c.code, true);
+  if(auth&&auth.currentUser) setNubeStatus('Conectado como '+auth.currentUser.email+' ✓', true);
+  else setNubeStatus('Sin iniciar sesión.', false);
 }
 function saveNube(){
   let raw=document.getElementById('nube-config').value;
@@ -883,14 +885,13 @@ function loadFirebase(cb){
   add(B+'firebase-app-compat.js', ()=>add(B+'firebase-auth-compat.js', ()=>add(B+'firebase-firestore-compat.js', cb)));
 }
 function initNube(){
-  const c=nubeCfg(); if(!c||!c.config||!c.code) return;
   loadFirebase(()=>{
     try{
-      if(!firebase.apps.length) firebase.initializeApp(c.config);
+      if(!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
       const db=firebase.firestore();
       try{ db.enablePersistence({synchronizeTabs:true}).catch(()=>{}); }catch(e){}
       auth=firebase.auth();
-      baseDoc=db.collection('empresas').doc(c.code);
+      baseDoc=db.collection('empresas').doc(EMPRESA_CODE);
       txCol=baseDoc.collection('txs');
       if(unsubAuth) unsubAuth();
       unsubAuth=auth.onAuthStateChanged(user=>{
@@ -910,7 +911,7 @@ function initNube(){
 }
 /* ---- Inicio de sesión ---- */
 function setLoginStatus(msg){ const s=document.getElementById('login-status'); if(s) s.textContent=msg||''; }
-function openLogin(){ document.getElementById('login-overlay').classList.add('show'); const c=nubeCfg(); setLoginStatus(c?('Empresa: '+c.code):''); }
+function openLogin(){ document.getElementById('login-overlay').classList.add('show'); setLoginStatus('Empresa: '+EMPRESA_CODE); }
 function doLogin(){
   if(!auth){ setLoginStatus('Primero configura la nube (☁️).'); return; }
   const em=document.getElementById('login-email').value.trim();
@@ -960,7 +961,7 @@ function syncPush(){
   onCatChange();
   Object.assign(photoCache, await dbAll());
   renderAll();
-  if(nubeCfg()) initNube();
+  initNube();
 })();
 
 /* Registrar service worker (para instalar como app y funcionar sin internet) */
