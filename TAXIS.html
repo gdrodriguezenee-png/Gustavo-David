@@ -361,6 +361,24 @@
       <button class="btn ghost" onclick="document.getElementById('nube-overlay').classList.remove('show')">Cerrar</button>
     </div>
     <p class="mini">Las <b>fotos</b> de facturas se quedan en cada dispositivo; los números y registros sí se comparten. Tras guardar por primera vez, recarga la app en cada dispositivo.</p>
+    <div style="margin-top:10px;text-align:center"><button class="btn ghost sm" onclick="logoutNube()">Cerrar sesión</button></div>
+  </div>
+</div>
+
+<!-- Modal iniciar sesión -->
+<div class="overlay" id="login-overlay">
+  <div class="card" style="max-width:380px;width:100%" onclick="event.stopPropagation()">
+    <h2>🔒 Iniciar sesión</h2>
+    <p class="mini" style="margin-top:0">Ingresa con el correo y la contraseña de la empresa para ver y editar los datos.</p>
+    <label>Correo</label>
+    <input type="email" id="login-email" placeholder="correo@ejemplo.com" autocomplete="username">
+    <label>Contraseña</label>
+    <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+    <div id="login-status" class="mini"></div>
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button class="btn primary" style="flex:1;justify-content:center;padding:11px" onclick="doLogin()">Entrar</button>
+      <button class="btn ghost" onclick="document.getElementById('login-overlay').classList.remove('show')">Cerrar</button>
+    </div>
   </div>
 </div>
 
@@ -828,7 +846,7 @@ function importJSON(e){
 function download(name,content,type){ const b=new Blob([content],{type}), u=URL.createObjectURL(b); const a=document.createElement('a'); a.href=u; a.download=name; a.click(); URL.revokeObjectURL(u); }
 
 /* ================= Sincronización en la nube (Firebase) ================= */
-let baseDoc=null, txCol=null, syncedTxs={}, firstTxSnap=true, unsubTx=null, unsubBase=null;
+let baseDoc=null, txCol=null, syncedTxs={}, firstTxSnap=true, unsubTx=null, unsubBase=null, auth=null, unsubAuth=null;
 function nubeCfg(){ try{ return JSON.parse(localStorage.getItem('taxi_nube'))||null }catch(e){ return null } }
 function setNubeStatus(msg, ok){
   const s=document.getElementById('nube-status'); if(s){ s.textContent=msg; s.style.color= ok?'var(--green)':'var(--red)'; }
@@ -859,9 +877,10 @@ function saveNube(){
   initNube();
 }
 function loadFirebase(cb){
-  if(typeof firebase!=='undefined' && firebase.firestore) return cb();
+  if(typeof firebase!=='undefined' && firebase.firestore && firebase.auth) return cb();
   const add=(src,next)=>{ const s=document.createElement('script'); s.src=src; s.onload=next; s.onerror=()=>setNubeStatus('No se pudo cargar la nube (revisa internet).', false); document.head.appendChild(s); };
-  add('https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js', ()=>add('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js', cb));
+  const B='https://www.gstatic.com/firebasejs/10.12.2/';
+  add(B+'firebase-app-compat.js', ()=>add(B+'firebase-auth-compat.js', ()=>add(B+'firebase-firestore-compat.js', cb)));
 }
 function initNube(){
   const c=nubeCfg(); if(!c||!c.config||!c.code) return;
@@ -870,13 +889,40 @@ function initNube(){
       if(!firebase.apps.length) firebase.initializeApp(c.config);
       const db=firebase.firestore();
       try{ db.enablePersistence({synchronizeTabs:true}).catch(()=>{}); }catch(e){}
+      auth=firebase.auth();
       baseDoc=db.collection('empresas').doc(c.code);
       txCol=baseDoc.collection('txs');
-      listenNube();
-      setNubeStatus('Nube conectada ('+c.code+') ✓', true);
+      if(unsubAuth) unsubAuth();
+      unsubAuth=auth.onAuthStateChanged(user=>{
+        if(user){
+          firstTxSnap=true; listenNube();
+          setNubeStatus('Conectado como '+user.email+' ✓', true);
+          const lo=document.getElementById('login-overlay'); if(lo) lo.classList.remove('show');
+        } else {
+          if(unsubTx){ unsubTx(); unsubTx=null; }
+          if(unsubBase){ unsubBase(); unsubBase=null; }
+          setNubeStatus('Inicia sesión para sincronizar.', false);
+          openLogin();
+        }
+      });
     }catch(e){ setNubeStatus('Error: '+e.message, false); }
   });
 }
+/* ---- Inicio de sesión ---- */
+function setLoginStatus(msg){ const s=document.getElementById('login-status'); if(s) s.textContent=msg||''; }
+function openLogin(){ document.getElementById('login-overlay').classList.add('show'); const c=nubeCfg(); setLoginStatus(c?('Empresa: '+c.code):''); }
+function doLogin(){
+  if(!auth){ setLoginStatus('Primero configura la nube (☁️).'); return; }
+  const em=document.getElementById('login-email').value.trim();
+  const pw=document.getElementById('login-pass').value;
+  if(!em||!pw){ setLoginStatus('Escribe correo y contraseña.'); return; }
+  setLoginStatus('Entrando...');
+  auth.signInWithEmailAndPassword(em,pw).catch(e=>{
+    const map={'auth/invalid-credential':'Correo o contraseña incorrectos.','auth/wrong-password':'Contraseña incorrecta.','auth/user-not-found':'Ese correo no existe.','auth/invalid-email':'Correo no válido.','auth/too-many-requests':'Demasiados intentos. Espera un momento.'};
+    setLoginStatus(map[e.code]||('No se pudo entrar: '+(e.code||e.message)));
+  });
+}
+function logoutNube(){ if(auth) auth.signOut().catch(()=>{}); document.getElementById('nube-overlay').classList.remove('show'); setNubeStatus('Sesión cerrada.', false); }
 function listenNube(){
   if(unsubTx) unsubTx(); if(unsubBase) unsubBase();
   unsubTx=txCol.onSnapshot(snap=>{
