@@ -154,6 +154,7 @@
       <p>Tarifas semanales, gastos y mantenimiento de tu flota</p>
     </div>
     <div class="head-actions">
+      <button class="btn ghost" id="nube-btn" onclick="openNube()">☁️ Nube</button>
       <button class="btn ghost" onclick="openAI()">🤖 IA</button>
       <button class="btn ghost" onclick="exportCSV()">⬇ CSV</button>
       <button class="btn ghost" onclick="exportJSON()">💾 Respaldo</button>
@@ -345,6 +346,24 @@
   </div>
 </div>
 
+<!-- Modal sincronización en la nube -->
+<div class="overlay" id="nube-overlay">
+  <div class="card" style="max-width:480px;width:100%" onclick="event.stopPropagation()">
+    <h2>☁️ Sincronizar en la nube</h2>
+    <p class="mini" style="margin-top:0">Comparte los datos entre la compu y el celular. Usa el <b>mismo código de empresa</b> y la <b>misma configuración de Firebase</b> en todos los dispositivos.</p>
+    <label>Código de empresa (igual en todos los dispositivos)</label>
+    <input type="text" id="nube-code" placeholder="ej. gustavo-taxis">
+    <label>Configuración de Firebase</label>
+    <textarea id="nube-config" style="min-height:120px;font-family:monospace;font-size:12px" placeholder='{ apiKey: "...", authDomain: "...", projectId: "...", ... }'></textarea>
+    <div id="nube-status" class="mini"></div>
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button class="btn primary" style="flex:1;justify-content:center" onclick="saveNube()">Guardar y conectar</button>
+      <button class="btn ghost" onclick="document.getElementById('nube-overlay').classList.remove('show')">Cerrar</button>
+    </div>
+    <p class="mini">Las <b>fotos</b> de facturas se quedan en cada dispositivo; los números y registros sí se comparten. Tras guardar por primera vez, recarga la app en cada dispositivo.</p>
+  </div>
+</div>
+
 <script>
 /* ================= Datos ================= */
 const KEY='finanzas_taxi_v3';
@@ -374,7 +393,7 @@ let pendingPhoto=null;
 const photoCache={};
 
 function load(){ try{ return JSON.parse(localStorage.getItem(KEY))||[] }catch(e){ return [] } }
-function save(){ localStorage.setItem(KEY, JSON.stringify(state.txs)) }
+function save(){ localStorage.setItem(KEY, JSON.stringify(state.txs)); syncPush(); }
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6) }
 function money(n){ return (n<0?'-':'')+'L '+Math.abs(n).toLocaleString('es-HN',{minimumFractionDigits:2,maximumFractionDigits:2}) }
 function esc(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])) }
@@ -412,7 +431,7 @@ function renderOilAlert(){
 
 /* ================= Motos ================= */
 function loadMotos(){ try{ return JSON.parse(localStorage.getItem(MOTOS_KEY))||[] }catch(e){ return [] } }
-function saveMotos(a){ localStorage.setItem(MOTOS_KEY, JSON.stringify(a)) }
+function saveMotos(a){ localStorage.setItem(MOTOS_KEY, JSON.stringify(a)); if(baseDoc){ baseDoc.set({motos:a},{merge:true}).catch(()=>{}); } }
 function currentMotos(){ const set=new Set(loadMotos()); state.txs.filter(t=>t.cat==='Tarifas'&&t.veh).forEach(t=>set.add(t.veh)); return [...set].sort(); }
 function addMoto(){ const i=document.getElementById('new-moto'); const n=i.value.trim(); if(!n) return; const a=loadMotos(); if(!a.includes(n)) a.push(n); saveMotos(a); i.value=''; renderTarifas(); }
 function delMoto(n){ if(!confirm('¿Quitar "'+n+'" de la lista? (No borra los ingresos ya registrados)')) return; saveMotos(loadMotos().filter(x=>x!==n)); renderTarifas(); }
@@ -685,7 +704,7 @@ function render(){
       <td class="muted">${fmtDate(t.date)}</td>
       <td>
         <div>${t.veh?('<b>'+esc(t.veh)+'</b>'):'<span class="muted">—</span>'} ${t.drv?('· '+esc(t.drv)):''}
-          ${t.hasPhoto?`<a class="clip" title="Ver factura" onclick="viewPhoto('${t.id}')">📎</a>`:''}</div>
+          ${photoCache[t.id]?`<a class="clip" title="Ver factura" onclick="viewPhoto('${t.id}')">📎</a>`:''}</div>
         ${t.parts&&t.parts.length?`<div class="muted" style="font-size:12px">🔧 ${t.parts.map(p=>esc(p.name)).join(', ')}</div>`:''}
         ${t.note?('<div class="muted" style="font-size:12px">'+esc(t.note)+'</div>'):''}
       </td>
@@ -747,7 +766,7 @@ function renderMaint(){
   document.getElementById('maint-history').innerHTML = list.length ? list.map(t=>`
     <div class="mcard">
       <div class="top">
-        ${t.hasPhoto?`<img class="mthumb" src="${photoCache[t.id]||''}" onclick="viewPhoto('${t.id}')" alt="factura">`:''}
+        ${photoCache[t.id]?`<img class="mthumb" src="${photoCache[t.id]}" onclick="viewPhoto('${t.id}')" alt="factura">`:''}
         <div>
           <div class="veh">${t.veh?esc(t.veh):'Sin vehículo'} <span class="pill">${esc(t.cat)}</span></div>
           <div class="meta">${fmtDate(t.date)}${t.shop?(' · '+esc(t.shop)):''}</div>
@@ -808,6 +827,78 @@ function importJSON(e){
 }
 function download(name,content,type){ const b=new Blob([content],{type}), u=URL.createObjectURL(b); const a=document.createElement('a'); a.href=u; a.download=name; a.click(); URL.revokeObjectURL(u); }
 
+/* ================= Sincronización en la nube (Firebase) ================= */
+let baseDoc=null, txCol=null, syncedTxs={}, firstTxSnap=true, unsubTx=null, unsubBase=null;
+function nubeCfg(){ try{ return JSON.parse(localStorage.getItem('taxi_nube'))||null }catch(e){ return null } }
+function setNubeStatus(msg, ok){
+  const s=document.getElementById('nube-status'); if(s){ s.textContent=msg; s.style.color= ok?'var(--green)':'var(--red)'; }
+  const b=document.getElementById('nube-btn'); if(b){ b.style.color= ok?'var(--green)':''; b.style.borderColor= ok?'var(--green)':''; }
+}
+function openNube(){
+  const c=nubeCfg()||{};
+  document.getElementById('nube-code').value=c.code||'';
+  document.getElementById('nube-config').value=c.config?JSON.stringify(c.config,null,2):'';
+  document.getElementById('nube-overlay').classList.add('show');
+  if(c.code) setNubeStatus('Configurada. Código: '+c.code, true);
+}
+function saveNube(){
+  const raw=document.getElementById('nube-config').value.trim();
+  const code=document.getElementById('nube-code').value.trim();
+  if(!raw||!code){ setNubeStatus('Falta el código o la configuración.', false); return; }
+  let cfg; try{ const m=raw.match(/\{[\s\S]*\}/); cfg=(new Function('return ('+m[0]+')'))(); }catch(e){ setNubeStatus('La configuración no es válida.', false); return; }
+  if(!cfg||!cfg.projectId){ setNubeStatus('Falta "projectId" en la configuración.', false); return; }
+  localStorage.setItem('taxi_nube', JSON.stringify({config:cfg, code}));
+  firstTxSnap=true; setNubeStatus('Guardado. Conectando...', true);
+  initNube();
+}
+function loadFirebase(cb){
+  if(typeof firebase!=='undefined' && firebase.firestore) return cb();
+  const add=(src,next)=>{ const s=document.createElement('script'); s.src=src; s.onload=next; s.onerror=()=>setNubeStatus('No se pudo cargar la nube (revisa internet).', false); document.head.appendChild(s); };
+  add('https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js', ()=>add('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js', cb));
+}
+function initNube(){
+  const c=nubeCfg(); if(!c||!c.config||!c.code) return;
+  loadFirebase(()=>{
+    try{
+      if(!firebase.apps.length) firebase.initializeApp(c.config);
+      const db=firebase.firestore();
+      try{ db.enablePersistence({synchronizeTabs:true}).catch(()=>{}); }catch(e){}
+      baseDoc=db.collection('empresas').doc(c.code);
+      txCol=baseDoc.collection('txs');
+      listenNube();
+      setNubeStatus('Nube conectada ('+c.code+') ✓', true);
+    }catch(e){ setNubeStatus('Error: '+e.message, false); }
+  });
+}
+function listenNube(){
+  if(unsubTx) unsubTx(); if(unsubBase) unsubBase();
+  unsubTx=txCol.onSnapshot(snap=>{
+    const remote={}; snap.forEach(d=>remote[d.id]=d.data());
+    if(firstTxSnap){
+      firstTxSnap=false;
+      const localById={}; state.txs.forEach(t=>localById[t.id]=t);
+      Object.keys(localById).forEach(id=>{ if(!remote[id]) txCol.doc(id).set(localById[id]).catch(()=>{}); });
+      state.txs=Object.values(Object.assign({}, localById, remote));
+    } else {
+      state.txs=Object.values(remote);
+    }
+    syncedTxs={}; state.txs.forEach(t=>syncedTxs[t.id]=JSON.stringify(t));
+    localStorage.setItem(KEY, JSON.stringify(state.txs));
+    renderAll();
+  }, err=>setNubeStatus('Error nube: '+err.message, false));
+  unsubBase=baseDoc.onSnapshot(doc=>{
+    const d=doc.data();
+    if(d && Array.isArray(d.motos)){ localStorage.setItem(MOTOS_KEY, JSON.stringify(d.motos)); renderTarifas(); }
+    else { const lm=loadMotos(); if(lm.length) baseDoc.set({motos:lm},{merge:true}).catch(()=>{}); }
+  });
+}
+function syncPush(){
+  if(!txCol) return;
+  const cur={}; state.txs.forEach(t=>cur[t.id]=t);
+  for(const id in cur){ const s=JSON.stringify(cur[id]); if(syncedTxs[id]!==s){ txCol.doc(id).set(cur[id]).catch(()=>{}); syncedTxs[id]=s; } }
+  for(const id in syncedTxs){ if(!(id in cur)){ txCol.doc(id).delete().catch(()=>{}); delete syncedTxs[id]; } }
+}
+
 /* ================= Init ================= */
 (async function(){
   document.getElementById('f-date').value=todayISO();
@@ -816,6 +907,7 @@ function download(name,content,type){ const b=new Blob([content],{type}), u=URL.
   onCatChange();
   Object.assign(photoCache, await dbAll());
   renderAll();
+  if(nubeCfg()) initNube();
 })();
 
 /* Registrar service worker (para instalar como app y funcionar sin internet) */
