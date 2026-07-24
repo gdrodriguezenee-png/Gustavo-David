@@ -111,13 +111,25 @@
   .parts-list{list-style:none;font-size:13px}
   .parts-list li{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed var(--line)}
   .parts-list li:last-child{border-bottom:none}
-  .parts-list .pc{color:var(--muted);font-variant-numeric:tabular-nums}
+  .parts-list .pc{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .parts-list .part-ago{color:var(--muted);font-size:11px}
+  .parts-list .part-alarm{color:#ffb4ab;font-size:11px;margin-top:3px}
+  .parts-list .part-alarm b{color:#fff}
   .mthumb{width:54px;height:54px;object-fit:cover;border-radius:8px;border:1px solid var(--line);cursor:pointer}
 
   .muted{color:var(--muted)} .center{text-align:center}
   .mini{font-size:12px;color:var(--muted);margin-top:12px}
   .hidden{display:none!important}
   footer{margin-top:26px;text-align:center;color:var(--muted);font-size:12px}
+
+  .alert-banner{display:none;background:rgba(245,179,1,.12);border:1px solid var(--accent);border-radius:12px;padding:12px 14px;margin-bottom:16px;font-size:13.5px;color:var(--txt)}
+  .alert-banner .ttl{font-weight:800;color:var(--accent2);display:flex;align-items:center;gap:8px;margin-bottom:6px}
+  .alert-banner ul{margin:0;padding-left:20px}
+  .alert-banner li{margin:3px 0}
+  .alert-banner b{color:var(--accent)}
+  .alert-banner li.venc{color:#ffd7d2}
+  .alert-banner li.venc b{color:#fff}
+  .tag-venc{background:var(--red);color:#fff;font-size:10px;font-weight:800;padding:1px 7px;border-radius:20px;letter-spacing:.5px}
 
   .overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;place-items:center;z-index:50;padding:20px}
   .overlay.show{display:grid}
@@ -141,6 +153,8 @@
       <input type="file" id="imp" accept="application/json" hidden onchange="importJSON(event)">
     </div>
   </header>
+
+  <div class="alert-banner" id="oil-alert"></div>
 
   <div class="tabs">
     <button id="tab-tar" class="active" onclick="showTab('tar')">🛵 Tarifas</button>
@@ -219,6 +233,7 @@
           <label>Taller / Mecánico</label>
           <input type="text" id="f-shop" placeholder="Opcional">
           <label style="margin-top:12px">Partes / refacciones cambiadas</label>
+          <datalist id="parts-catalog"></datalist>
           <div id="parts"></div>
           <div style="display:flex;gap:8px;margin-top:4px">
             <button type="button" class="btn sm ghost" onclick="addPartRow()">＋ Agregar parte</button>
@@ -236,8 +251,9 @@
         <label>Nota</label>
         <textarea id="f-note" placeholder="Detalle opcional (factura #, ruta...)"></textarea>
 
-        <div style="margin-top:14px">
-          <button class="btn primary" style="width:100%;justify-content:center;padding:11px" onclick="addGasto()">Guardar gasto</button>
+        <div style="margin-top:14px;display:flex;gap:8px">
+          <button class="btn primary" id="save-btn" style="flex:1;justify-content:center;padding:11px" onclick="addGasto()">Guardar gasto</button>
+          <button class="btn ghost" id="cancel-edit" style="display:none;padding:11px" onclick="cancelEdit()">Cancelar</button>
         </div>
         <p class="mini">Los ingresos se registran en la pestaña <b>Tarifas</b>. Usa <b>Respaldo</b> para no perder tus datos.</p>
       </div>
@@ -325,8 +341,24 @@
 /* ================= Datos ================= */
 const KEY='finanzas_taxi_v3';
 const MOTOS_KEY='taxi_motos';
-const MAINT_CATS=['Mantenimiento','Reparación','Llantas'];
-const GASTO_CATS=['Combustible','Mantenimiento','Reparación','Llantas','Lavado','Seguro','Impuestos / Permisos','Pago mano de obra','Comisión app','Multas','Otros gastos'];
+const MAINT_CATS=['Cambio de aceite','Mantenimiento','Reparación','Llantas'];
+const GASTO_CATS=['Combustible','Cambio de aceite','Mantenimiento','Reparación','Llantas','Lavado','Seguro','Impuestos / Permisos','Pago mano de obra','Comisión app','Multas','Otros gastos'];
+const MESES_ACEITE=2; // meses para el próximo cambio de aceite
+const AVISO_DIAS=7;   // avisar estos días antes del vencimiento
+const PIEZAS=[
+  'Aceite de motor','Filtro de aceite','Filtro de aire','Filtro de combustible','Bujías','Cables de bujía','Bobina',
+  'Balatas delanteras','Balatas traseras','Discos de freno','Tambores de freno','Zapatas','Líquido de frenos','Bomba de freno','Cilindro de freno',
+  'Amortiguadores delanteros','Amortiguadores traseros','Espirales / Resortes','Rótulas','Terminales de dirección','Bujes de suspensión','Barra estabilizadora','Cremallera de dirección','Bomba de dirección',
+  'Rodamiento de rueda / Balero','Llanta','Rin','Válvula de llanta','Alineado y balanceo',
+  'Clutch / Embrague','Aceite de transmisión','Cruceta','Junta homocinética','Soportes de motor',
+  'Batería','Alternador','Motor de arranque','Fusibles','Bombillos / Focos','Faros','Stop / Calavera','Relay',
+  'Radiador','Mangueras de radiador','Refrigerante / Anticongelante','Ventilador / Fan','Termostato','Bomba de agua',
+  'Faja / Banda de distribución','Faja de accesorios','Tensor de faja',
+  'Bomba de gasolina','Inyectores','Sensor de oxígeno','Cuerpo de aceleración',
+  'Escape / Mofle','Empaque de cabeza','Empaques varios','Retenedores',
+  'Limpiaparabrisas','Espejos','Manijas','Vidrios',
+  'Cadena (moto)','Piñón (moto)','Catalina (moto)','Kit de arrastre (moto)','Cable de embrague','Cable de acelerador','Pastillas de freno (moto)','Amortiguador trasero (moto)','Rodos','Cauchos de motor','Comando / Switch','Manigueta'
+];
 const DAYS=['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
 
 let state={ txs:load(), week:getMonday(new Date()) };
@@ -343,6 +375,32 @@ function todayISO(){ return isoLocal(new Date()) }
 function fmtDate(s){ return new Date(s+'T00:00:00').toLocaleDateString('es-HN',{day:'2-digit',month:'short',year:'2-digit'}) }
 function getMonday(d){ const x=new Date(d); const day=(x.getDay()+6)%7; x.setDate(x.getDate()-day); x.setHours(0,0,0,0); return x; }
 function addDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
+function addMonths(d,n){ const x=new Date(d); x.setMonth(x.getMonth()+n); return x; }
+
+/* ================= Alerta de cambio de aceite ================= */
+function oilAlerts(){
+  const last={};
+  state.txs.filter(t=>t.type==='gasto'&&t.cat==='Cambio de aceite'&&t.veh).forEach(t=>{ if(!last[t.veh]||t.date>last[t.veh]) last[t.veh]=t.date; });
+  const today=new Date(); today.setHours(0,0,0,0);
+  const out=[];
+  for(const veh in last){
+    const due=addMonths(new Date(last[veh]+'T00:00:00'), MESES_ACEITE);
+    const diff=Math.round((due-today)/86400000); // días hasta el vencimiento (negativo = vencido)
+    if(diff<=0) out.push({veh, last:last[veh], due:isoLocal(due), status:'vencido', days:-diff});
+    else if(diff<=AVISO_DIAS) out.push({veh, last:last[veh], due:isoLocal(due), status:'proximo', days:diff});
+  }
+  return out.sort((a,b)=> a.status!==b.status ? (a.status==='vencido'?-1:1) : (a.status==='vencido'? b.days-a.days : a.days-b.days));
+}
+function renderOilAlert(){
+  const a=oilAlerts(), el=document.getElementById('oil-alert');
+  if(!a.length){ el.style.display='none'; el.innerHTML=''; return; }
+  el.style.display='block';
+  const li=x=>{
+    if(x.status==='vencido') return `<li class="venc"><b>${esc(x.veh)}</b> — <span class="tag-venc">VENCIDO</span> ${x.days>0?('hace '+x.days+' día'+(x.days===1?'':'s')):'hoy'} · último cambio: ${fmtDate(x.last)}</li>`;
+    return `<li><b>${esc(x.veh)}</b> — faltan <b>${x.days} día${x.days===1?'':'s'}</b> para el cambio (toca el ${fmtDate(x.due)})</li>`;
+  };
+  el.innerHTML='<div class="ttl">🛢️ Cambios de aceite ('+a.length+')</div><ul>'+a.map(li).join('')+'</ul>';
+}
 
 /* ================= Motos ================= */
 function loadMotos(){ try{ return JSON.parse(localStorage.getItem(MOTOS_KEY))||[] }catch(e){ return [] } }
@@ -454,7 +512,7 @@ async function readInvoiceAI(){
   const prompt=`Eres un asistente que extrae datos de facturas o tickets de GASTOS de una empresa de taxis en Honduras (moneda Lempira, L). Analiza la imagen y devuelve SOLO un objeto JSON válido, sin markdown ni explicación, con esta forma exacta:
 {"fecha":"YYYY-MM-DD","monto":0,"categoria":"","taller":"","partes":[{"name":"","cost":0}],"nota":""}
 Reglas:
-- "categoria" debe ser EXACTAMENTE una de: Combustible, Mantenimiento, Reparación, Llantas, Lavado, Seguro, Impuestos / Permisos, Pago mano de obra, Comisión app, Multas, Otros gastos.
+- "categoria" debe ser EXACTAMENTE una de: Combustible, Cambio de aceite, Mantenimiento, Reparación, Llantas, Lavado, Seguro, Impuestos / Permisos, Pago mano de obra, Comisión app, Multas, Otros gastos.
 - "monto" es el total a pagar, número sin símbolo.
 - "partes": refacciones o servicios detallados con su costo; [] si no hay detalle.
 - "taller": nombre del comercio; "nota": número de factura o breve descripción.
@@ -497,30 +555,71 @@ function onCatChange(){
 }
 function addPartRow(name='',cost=''){
   const div=document.createElement('div'); div.className='part-row';
-  div.innerHTML=`<input placeholder="Ej. Balatas, aceite, filtro" value="${esc(name)}" oninput="sumParts()">
+  div.innerHTML=`<input list="parts-catalog" placeholder="Escoge o escribe la pieza" value="${esc(name)}" oninput="sumParts()">
     <input type="number" placeholder="Costo" step="0.01" min="0" value="${cost}" oninput="sumParts()">
     <button type="button" class="rm" onclick="this.parentNode.remove();sumParts()">✕</button>`;
   document.getElementById('parts').appendChild(div);
 }
 function readParts(){ return [...document.querySelectorAll('#parts .part-row')].map(r=>{ const i=r.querySelectorAll('input'); return { name:i[0].value.trim(), cost:parseFloat(i[1].value)||0 }; }).filter(p=>p.name); }
 function sumParts(){ const s=[...document.querySelectorAll('#parts .part-row')].reduce((a,r)=>a+(parseFloat(r.querySelectorAll('input')[1].value)||0),0); const f=document.getElementById('f-amount'); if(s>0) f.value=s.toFixed(2); else if(document.querySelectorAll('#parts .part-row').length) f.value=''; }
+let editingId=null;
+function clearForm(){
+  ['f-amount','f-note','f-shop','f-veh','f-drv'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f-date').value=todayISO();
+  document.getElementById('parts').innerHTML='';
+  clearPhoto(); onCatChange();
+}
+function setEditUI(on){
+  document.getElementById('save-btn').textContent = on?'Actualizar gasto':'Guardar gasto';
+  document.getElementById('cancel-edit').style.display = on?'inline-flex':'none';
+  const h=document.querySelector('#view-fin .card h2'); if(h) h.textContent = on?'✏️ Editar gasto':'➖ Nuevo gasto';
+}
+function cancelEdit(){ editingId=null; clearForm(); setEditUI(false); }
+function editGasto(id){
+  const t=state.txs.find(x=>x.id===id); if(!t) return;
+  editingId=id; showTab('fin');
+  document.getElementById('f-cat').value = GASTO_CATS.includes(t.cat)? t.cat : GASTO_CATS[0];
+  document.getElementById('f-date').value=t.date;
+  document.getElementById('f-veh').value=t.veh||'';
+  document.getElementById('f-drv').value=t.drv||'';
+  document.getElementById('f-note').value=t.note||'';
+  onCatChange();
+  if(!document.getElementById('maint-box').classList.contains('hidden')){
+    document.getElementById('f-shop').value=t.shop||'';
+    document.getElementById('parts').innerHTML='';
+    (t.parts||[]).forEach(p=>addPartRow(p.name,p.cost||''));
+    if(!(t.parts||[]).length) addPartRow();
+  }
+  document.getElementById('f-amount').value=t.amount;
+  pendingPhoto = t.hasPhoto ? (photoCache[id]||null) : null;
+  renderThumb(); setEditUI(true);
+  document.getElementById('save-btn').scrollIntoView({behavior:'smooth',block:'center'});
+}
 async function addGasto(){
   const amount=parseFloat(document.getElementById('f-amount').value);
   if(!amount||amount<=0){ alert('Ingresa un monto válido.'); return; }
   const cat=document.getElementById('f-cat').value;
   const isM=MAINT_CATS.includes(cat);
-  const tx={ id:uid(), type:'gasto', amount:Math.round(amount*100)/100,
+  const base={ amount:Math.round(amount*100)/100,
     date:document.getElementById('f-date').value||todayISO(), cat,
     veh:document.getElementById('f-veh').value.trim(), drv:document.getElementById('f-drv').value.trim(),
     note:document.getElementById('f-note').value.trim(),
     parts:isM?readParts():[], odo:null,
-    shop:isM?document.getElementById('f-shop').value.trim():'', hasPhoto:!!pendingPhoto };
-  if(pendingPhoto){ await dbSet(tx.id,pendingPhoto); photoCache[tx.id]=pendingPhoto; }
-  state.txs.push(tx); save();
-  document.getElementById('f-amount').value=''; document.getElementById('f-note').value='';
-  document.getElementById('f-shop').value='';
-  document.getElementById('parts').innerHTML=''; clearPhoto(); onCatChange();
-  renderAll();
+    shop:isM?document.getElementById('f-shop').value.trim():'' };
+  if(editingId){
+    const t=state.txs.find(x=>x.id===editingId);
+    if(t){
+      Object.assign(t, base);
+      if(pendingPhoto){ await dbSet(t.id,pendingPhoto); photoCache[t.id]=pendingPhoto; t.hasPhoto=true; }
+      else { if(t.hasPhoto){ await dbDel(t.id); delete photoCache[t.id]; } t.hasPhoto=false; }
+    }
+    editingId=null; setEditUI(false);
+  } else {
+    const tx=Object.assign({id:uid(),type:'gasto',hasPhoto:!!pendingPhoto}, base);
+    if(pendingPhoto){ await dbSet(tx.id,pendingPhoto); photoCache[tx.id]=pendingPhoto; }
+    state.txs.push(tx);
+  }
+  save(); clearForm(); renderAll();
 }
 async function delTx(id){
   if(!confirm('¿Eliminar este movimiento?')) return;
@@ -584,7 +683,7 @@ function render(){
       </td>
       <td><span class="pill">${esc(t.cat)}</span></td>
       <td class="amt ${t.type==='ingreso'?'in':'ex'}">${t.type==='ingreso'?'+':'−'}${money(t.amount).replace('-','')}</td>
-      <td><button class="del" title="Eliminar" onclick="delTx('${t.id}')">✕</button></td>
+      <td style="white-space:nowrap">${t.type==='gasto'?`<button class="del" title="Editar" onclick="editGasto('${t.id}')">✏️</button>`:''}<button class="del" title="Eliminar" onclick="delTx('${t.id}')">✕</button></td>
     </tr>`).join('') : '<tr><td colspan="5" class="empty">No hay movimientos que coincidan.</td></tr>';
   document.getElementById('list-count').textContent = rows.length+' movimiento'+(rows.length===1?'':'s');
 
@@ -595,6 +694,31 @@ function render(){
   const flv=document.getElementById('fl-veh'), cur=flv.value;
   flv.innerHTML='<option value="">Todo vehículo</option>'+veh.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
   flv.value=cur;
+}
+
+/* ================= Historial de piezas ================= */
+function normName(s){ return (s||'').trim().toLowerCase(); }
+function daysBetween(a,b){ return Math.round((new Date(b+'T00:00:00')-new Date(a+'T00:00:00'))/86400000); }
+function humanDur(days){
+  if(days<0) days=0;
+  if(days<31) return days+' día'+(days===1?'':'s');
+  const months=Math.floor(days/30.44);
+  if(months<12) return months+' mes'+(months===1?'':'es');
+  const years=Math.floor(months/12), rem=months%12;
+  return years+' año'+(years===1?'':'s')+(rem?(' y '+rem+' mes'+(rem===1?'':'es')):'');
+}
+function humanAgo(dateStr){ return humanDur(daysBetween(dateStr, todayISO())); }
+function prevPartChange(cur, partName){
+  let best=null;
+  state.txs.forEach(t=>{
+    if(t.id===cur.id || t.type!=='gasto' || !t.parts) return;
+    if(normName(t.veh)!==normName(cur.veh)) return;
+    if(!t.parts.some(p=>normName(p.name)===normName(partName))) return;
+    const earlier = t.date<cur.date || (t.date===cur.date && String(t.id)<String(cur.id));
+    if(!earlier) return;
+    if(!best || best.date<t.date || (best.date===t.date && String(best.id)<String(t.id))) best=t;
+  });
+  return best?best.date:null;
 }
 
 /* ================= Render Mantenimiento ================= */
@@ -621,13 +745,21 @@ function renderMaint(){
           <div class="meta">${fmtDate(t.date)}${t.shop?(' · '+esc(t.shop)):''}</div>
         </div>
         <div class="tot">${money(t.amount)}</div>
+        <div style="display:flex;gap:2px">
+          <button class="del" title="Editar" onclick="editGasto('${t.id}')">✏️</button>
+          <button class="del" title="Eliminar" onclick="delTx('${t.id}')">🗑️</button>
+        </div>
       </div>
-      ${t.parts&&t.parts.length?`<ul class="parts-list">${t.parts.map(p=>`<li><span>🔩 ${esc(p.name)}</span><span class="pc">${p.cost?money(p.cost):'—'}</span></li>`).join('')}</ul>`:'<div class="muted" style="font-size:12.5px">Sin detalle de refacciones.</div>'}
+      ${t.parts&&t.parts.length?`<ul class="parts-list">${t.parts.map(p=>{
+        const prev=prevPartChange(t, p.name);
+        const alarm = prev ? `<div class="part-alarm">⚠️ Ya se había cambiado el <b>${fmtDate(prev)}</b> · duró <b>${humanDur(daysBetween(prev,t.date))}</b></div>` : '';
+        return `<li><div style="flex:1;min-width:0"><div>🔩 ${esc(p.name)} <span class="part-ago">· hace ${humanAgo(t.date)}</span></div>${alarm}</div><span class="pc">${p.cost?money(p.cost):'—'}</span></li>`;
+      }).join('')}</ul>`:'<div class="muted" style="font-size:12.5px">Sin detalle de refacciones.</div>'}
       ${t.note?`<div class="muted" style="font-size:12px;margin-top:8px">📝 ${esc(t.note)}</div>`:''}
     </div>`).join('') : '<div class="empty">Aún no hay mantenimientos registrados.</div>';
 }
 
-function renderAll(){ renderTarifas(); render(); renderMaint(); }
+function renderAll(){ renderTarifas(); render(); renderMaint(); renderOilAlert(); }
 
 /* ================= Tabs ================= */
 function showTab(t){
@@ -672,6 +804,7 @@ function download(name,content,type){ const b=new Blob([content],{type}), u=URL.
 (async function(){
   document.getElementById('f-date').value=todayISO();
   document.getElementById('f-cat').innerHTML=GASTO_CATS.map(c=>`<option value="${c}">${c}</option>`).join('');
+  document.getElementById('parts-catalog').innerHTML=PIEZAS.map(p=>`<option value="${esc(p)}">`).join('');
   onCatChange();
   Object.assign(photoCache, await dbAll());
   renderAll();
