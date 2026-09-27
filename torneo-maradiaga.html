@@ -67,6 +67,10 @@ h2{font:700 32px/1.15 var(--hand);margin:52px 0 6px;color:var(--ink)}
 .teamact{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin-top:12px}
 .teamact span{font-size:14px;color:var(--muted)}
 .rest{margin:2px 0 0;font-size:13px;color:var(--muted);font-style:italic}
+.gwait{display:none;margin:10px 0 2px;padding:14px;border:1.5px dashed var(--line);border-radius:8px;color:var(--muted);font-size:14.5px;text-align:center}
+.group.nodraw .tw,.group.nodraw .fixtures{display:none}
+.group.nodraw .gwait{display:block}
+.drawmsg.warn{color:var(--amber)}
 .tin{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
 .gb{flex:none;min-width:40px;height:30px;padding:0 6px;border-radius:999px;display:grid;place-items:center;font:700 15px var(--cond);color:var(--marker);border:2px solid var(--marker)}
 .gb.none{color:var(--muted);border-color:var(--line)}
@@ -353,7 +357,6 @@ footer{margin-top:48px;font-size:13px;color:var(--muted)}
     <h1><span class="pre">Formato del torneo relámpago</span><span class="name">“Luis Enrique Maradiaga González”</span></h1>
     <p class="lede" id="lede"></p>
     <div class="actions">
-      <button class="btn" id="draw" type="button">Sortear grupos</button>
       <button class="btn ghost" id="reset" type="button">Borrar resultados</button>
     </div>
   </header>
@@ -641,6 +644,11 @@ function compute(){
 /* ---------- construir ---------- */
 const scoreInput=(attrs)=>`<input class="sc" type="number" min="0" max="99" inputmode="numeric" ${attrs}>`;
 
+const isPh=(name,i)=>{const t=String(name??'').trim();return !t||/^equipo\s*\d+$/i.test(t)};
+function voidDraw(){
+  S.drawn=false;S.drawnAt=null;S.drawNames=null;S.drawVoid=true;S.groups=defaultGroups(S.teams.length);
+  toast('Se escribió el nombre de un equipo que se sorteó sin nombre, así que el sorteo se anuló. Sortee cuando termine de anotar los equipos.');
+}
 function buildTeams(){
   const box=$('#teams');
   S.teams.forEach((n,i)=>{
@@ -650,7 +658,10 @@ function buildTeams(){
     const inp=div.querySelector('.tname'),kp=div.querySelector('.kp');
     inp.value=n;inp.placeholder='Equipo '+(i+1);inp.setAttribute('aria-label','Nombre del equipo '+(i+1));
     kp.value=S.keepers[i]||'';kp.setAttribute('aria-label','Portero del equipo '+(i+1));
-    inp.addEventListener('input',()=>{S.teams[i]=inp.value;save();refresh()});
+    inp.addEventListener('input',()=>{
+      const before=S.drawNames?S.drawNames[i]:S.teams[i];S.teams[i]=inp.value;
+      if(S.drawn&&!hasResults()&&isPh(before,i))voidDraw();
+      save();refresh()});
     kp.addEventListener('input',()=>{S.keepers[i]=kp.value;save();refresh()});
     box.appendChild(div);
   });
@@ -729,6 +740,8 @@ function refresh(){
 
   LETTERS.forEach(L=>{
     const art=$(`.group[data-g="${L}"]`),g=C.G[L];
+    if(!art.querySelector('.gwait'))art.insertAdjacentHTML('beforeend','<p class="gwait">Los equipos de este grupo aparecen después del sorteo.</p>');
+    art.classList.toggle('nodraw',!S.drawn);
     art.querySelector('.gs').textContent=!S.drawn?'Sin sortear':g.complete?'Grupo terminado':`${g.played} de ${g.total} partidos jugados`;
     const nq=S.format==='s4'?1:2;
     art.querySelector('tbody').innerHTML=g.rows.map((r,i)=>`<tr class="${i<nq?'q':i===nq?'t':''}"><td>${i+1}</td><td class="tn">${esc(nm(r.t))}</td><td>${r.pj}</td><td>${r.g}</td><td>${r.e}</td><td>${r.p}</td><td>${r.gf}</td><td>${r.gc}</td><td>${r.dg>0?'+'+r.dg:r.dg}</td><td class="pts">${r.pts}</td></tr>`).join('');
@@ -748,7 +761,7 @@ function refresh(){
 
   const s4=S.format==='s4',nw=s4?1:2,wn=s4?'segundo':'tercero';
   $('#thirdNote').textContent=C.allDone?'Tabla final.':'Tabla provisional: se confirma cuando terminen los tres grupos.';
-  $('#thirds tbody').innerHTML=C.wild.map((r,i)=>{
+  $('#thirds tbody').innerHTML=!S.drawn?'<tr class="empty-row"><td colspan="8">Aparece después del sorteo de grupos.</td></tr>':C.wild.map((r,i)=>{
     const st=i<nw?(C.allDone?(s4?'Clasifica a semifinales':(i===0?'Clasifica, mejor tercero':'Clasifica, 2.º mejor')):'Va clasificando'):(C.allDone?'Eliminado':'Fuera por ahora');
     return `<tr class="${i<nw?'q':''}"><td>${i+1}</td><td>${r.L}</td><td class="tn">${esc(nm(r.t))}</td><td>${r.pj}</td><td class="pts">${r.pts}</td><td>${r.dg>0?'+'+r.dg:r.dg}</td><td>${r.gf}</td><td class="${i<nw?'st-in':'st-out'}">${st}</td></tr>`;
   }).join('');
@@ -1007,11 +1020,13 @@ function paintDraw(G){
 function setDrawMsg(){
   $('#drawMsg').innerHTML=S.drawn
     ?'Sorteo realizado'+(S.drawnAt?' el <b>'+esc(S.drawnAt)+'</b>':'')+(/\.$/.test(S.drawnAt||'')?' ':'. ')+'Cada equipo quedó donde salió.'
-    :'Todavía no se ha hecho el sorteo de grupos.';
+    :S.drawVoid?'El sorteo anterior se anuló porque se escribieron nombres de equipos que se habían sorteado sin nombre. Cuando termine de anotar los equipos, sortee de nuevo.'
+    :'Todavía no se ha hecho el sorteo de grupos. Anote primero los nombres de los equipos.';
+  $('#drawMsg').classList.toggle('warn',!S.drawn&&!!S.drawVoid);
 }
 async function runDraw(){
   if(drawing)return;drawing=true;
-  const btns=[$('#draw'),$('#draw2'),$('#reset')];btns.forEach(b=>b.disabled=true);
+  const btns=[$('#draw2'),$('#reset')];btns.forEach(b=>b.disabled=true);
   const N=S.teams.length,z=sizesFor(N),ids=[...Array(N).keys()];
   for(let i=ids.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[ids[i],ids[j]]=[ids[j],ids[i]]}
   const order=[];for(let p=0;p<z.A;p++)LETTERS.forEach(L=>{if(p<z[L])order.push([L,p])});
@@ -1026,7 +1041,7 @@ async function runDraw(){
     $('#drawMsg').innerHTML=`Equipo ${i+1} de ${N}: <b>${esc(nm(t))}</b> sale para el <b>Grupo ${L}</b>, posición ${L}-${p+1}.`;
     if(!fast)await sleep(650);
   }
-  S.groups=G;S.drawn=true;
+  S.groups=G;S.drawn=true;S.drawNames=S.teams.slice();S.drawVoid=false;
   S.drawnAt=new Date().toLocaleString('es-HN',{dateStyle:'short',timeStyle:'short'});
   save();drawing=false;refresh();btns.forEach(b=>b.disabled=false);
   document.body.classList.remove('shuffled');void document.body.offsetWidth;document.body.classList.add('shuffled');
@@ -1035,15 +1050,17 @@ async function runDraw(){
 async function onDraw(){
   if(drawing)return;
   if(hasResults()&&!await askConfirm('¿Hacer un nuevo sorteo?','Ya hay marcadores anotados. Un nuevo sorteo cambia los grupos y borra todos los resultados.','Sortear de nuevo'))return;
+  const sin=S.teams.map((n,i)=>isPh(n,i)?nm(i):null).filter(Boolean);
+  if(sin.length&&!await askConfirm('Hay '+plural(sin.length,'equipo sin nombre','equipos sin nombre'),
+    (sin.length>4?sin.slice(0,4).join(', ')+' y '+(sin.length-4)+' más':sin.join(', '))+'. Si sortea ahora y después les escribe el nombre, el sorteo se anulará. ¿Sortear de todos modos?','Sortear de todos modos'))return;
   runDraw();
 }
-$('#draw').addEventListener('click',onDraw);
 $('#draw2').addEventListener('click',onDraw);
 $('#reset').addEventListener('click',async()=>{
   if(drawing)return;
-  if(!hasResults()){toast('No hay resultados anotados para borrar.');return}
-  if(!await askConfirm('¿Borrar todos los resultados?','Se borran los marcadores de grupos y llaves y los goles de los goleadores. Los equipos, jugadores, porteros y el sorteo se mantienen.','Borrar resultados'))return;
-  clearResults();save();refresh();toast('Resultados borrados.');
+  if(!hasResults()&&!S.drawn){toast('No hay resultados ni sorteo para borrar.');return}
+  if(!await askConfirm('¿Borrar resultados y sorteo?','Se borran el sorteo de grupos, los marcadores de grupos y llaves y los goles de los goleadores. Se mantienen los equipos con sus porteros y jugadores.','Borrar todo menos los equipos'))return;
+  resetStructure();save();rebuildAll();toast('Se borraron los resultados y el sorteo. Los equipos se mantienen.');
 });
 
 function renderPending(C){
@@ -1322,7 +1339,7 @@ $('#shareDl').addEventListener('click',()=>{
 window.addEventListener('beforeunload',e=>{if(ONLINE&&(dirty||saving)){e.preventDefault();e.returnValue=''}});
 
 /* ---------- agregar y quitar equipos ---------- */
-function resetStructure(){clearResults();S.drawn=false;S.drawnAt=null;S.groups=defaultGroups(S.teams.length)}
+function resetStructure(){clearResults();S.drawn=false;S.drawnAt=null;S.drawNames=null;S.drawVoid=false;S.groups=defaultGroups(S.teams.length)}
 const needsReset=()=>S.drawn||hasResults();
 async function addTeam(){
   if(drawing)return;const N=S.teams.length;
