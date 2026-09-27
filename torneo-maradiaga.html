@@ -314,7 +314,19 @@ footer{margin-top:48px;font-size:13px;color:var(--muted)}
       <label class="fld"><span>Contraseña</span><input id="lgPass" type="password" autocomplete="current-password"></label>
       <p class="lgerr" id="lgErr" role="alert"></p>
       <button class="btn" id="lgGo" type="submit">Entrar</button>
+      <button class="linkbtn" id="toRegister" type="button">¿No tiene usuario? Crear una cuenta</button>
       <button class="linkbtn" id="changeApi" type="button">Cambiar conexión</button>
+    </form>
+    <form id="regForm" hidden novalidate>
+      <h2>Crear cuenta</h2>
+      <p class="gtxt">Su cuenta podrá ver los resultados del torneo. Para anotar resultados, pida al administrador que le dé ese permiso.</p>
+      <label class="fld"><span>Nombre completo</span><input id="rgName" autocomplete="name" maxlength="60"></label>
+      <label class="fld"><span>Usuario para entrar</span><input id="rgUser" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="30" placeholder="ej. jperez"></label>
+      <label class="fld"><span>Contraseña (mínimo 4 caracteres)</span><input id="rgPass" type="password" autocomplete="new-password"></label>
+      <label class="fld"><span>Repita la contraseña</span><input id="rgPass2" type="password" autocomplete="new-password"></label>
+      <p class="lgerr" id="rgErr" role="alert"></p>
+      <button class="btn" id="rgGo" type="submit">Crear cuenta y entrar</button>
+      <button class="linkbtn" id="toLogin" type="button">Ya tengo usuario: iniciar sesión</button>
     </form>
   </div>
 </div>
@@ -1063,9 +1075,10 @@ async function apiPost(body,url){const r=await fetch(url||API,{method:'POST',hea
 const apiRead=()=>apiPost({accion:'leer',token:SES.token});
 function setView(v){document.body.dataset.view=v;$('#gate').hidden=v!=='gate'}
 function showGate(which,msg){
-  setView('gate');$('#setupForm').hidden=which!=='setup';$('#loginForm').hidden=which!=='login';
+  setView('gate');$('#setupForm').hidden=which!=='setup';$('#loginForm').hidden=which!=='login';$('#regForm').hidden=which!=='register';
   $('#changeApi').hidden=!!API_URL;
   if(which==='login'){$('#lgMsg').textContent=msg||'Entre con el usuario que le dio el administrador.';$('#lgErr').textContent='';$('#lgPass').value='';setTimeout(()=>$('#lgUser').focus(),0)}
+  else if(which==='register'){$('#rgErr').textContent='';$('#rgPass').value='';$('#rgPass2').value='';setTimeout(()=>$('#rgName').focus(),0)}
   else{$('#apiInput').value=API;$('#setupErr').textContent=msg||'';setTimeout(()=>$('#apiInput').focus(),0)}
 }
 function setSync(st){
@@ -1158,6 +1171,27 @@ function localMode(){
 }
 $('#goLocal').addEventListener('click',()=>{ls.set(LOCAL_KEY,'1');ONLINE=false;SES=null;localMode()});
 $('#changeApi').addEventListener('click',()=>showGate('setup'));
+$('#toRegister').addEventListener('click',()=>showGate('register'));
+$('#toLogin').addEventListener('click',()=>showGate('login'));
+$('#rgUser').addEventListener('input',e=>{const i=e.target,v=i.value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9._-]/g,'');if(v!==i.value)i.value=v});
+$('#regForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const n=$('#rgName').value.trim(),u=$('#rgUser').value.trim().toLowerCase(),c=$('#rgPass').value,c2=$('#rgPass2').value,err=$('#rgErr'),go=$('#rgGo');
+  if(!n){err.textContent='Escriba su nombre.';$('#rgName').focus();return}
+  if(!/^[a-z0-9._-]{3,30}$/.test(u)){err.textContent='El usuario debe tener de 3 a 30 letras o números, sin espacios ni tildes.';$('#rgUser').focus();return}
+  if(c.length<4){err.textContent='La contraseña debe tener al menos 4 caracteres.';$('#rgPass').focus();return}
+  if(c!==c2){err.textContent='Las contraseñas no coinciden.';$('#rgPass2').focus();return}
+  go.disabled=true;go.textContent='Creando cuenta…';err.textContent='';
+  try{
+    const r=await apiPost({accion:'registrar',nombre:n,usuario:u,clave:c});
+    if(r.ok){
+      SES={token:r.token,nombre:r.nombre,usuario:r.usuario,rol:r.rol};ls.set(SES_KEY,JSON.stringify(SES));
+      $('#regForm').reset();await enterApp();toast('Cuenta creada. Bienvenido, '+r.nombre+'.');
+    }else if(r.error==='accion')err.textContent='El servidor todavía no permite crear cuentas. El administrador debe publicar la versión nueva del Apps Script.';
+    else err.textContent=r.mensaje||'No se pudo crear la cuenta. Intente de nuevo.';
+  }catch(ex){err.textContent='No hay conexión con Google Sheets. Revise el internet e intente de nuevo.'}
+  go.disabled=false;go.textContent='Crear cuenta y entrar';
+});
 /* inicio de sesión */
 $('#loginForm').addEventListener('submit',async e=>{
   e.preventDefault();
