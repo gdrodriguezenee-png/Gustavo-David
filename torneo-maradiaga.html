@@ -228,6 +228,15 @@ body[data-view="gate"] main,body[data-view="gate"] .sesbar{display:none}
 .tact button{font:600 13px var(--sans);padding:5px 9px;border-radius:6px;border:1.5px solid var(--line);background:var(--paper);color:var(--ink);cursor:pointer;margin-left:4px}
 .tact button.danger{color:var(--danger)}
 .off td{color:var(--muted)}
+.pwrap{display:flex;gap:6px}
+.pwrap input{flex:1;min-width:0}
+.pbtn{flex:none;font:600 13px var(--sans);padding:0 10px;border-radius:6px;border:1.5px solid var(--line);background:var(--paper);color:var(--ink);cursor:pointer}
+.udone{background:var(--mint);border-left:4px solid var(--marker);border-radius:8px;padding:12px 14px;margin:0 0 14px}
+.udone[hidden]{display:none}
+.udone p{margin:0 0 8px}
+.udone dl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:0 0 10px}
+.udone dt{color:var(--muted)}
+.udone dd{margin:0;font:700 18px var(--cond);letter-spacing:.3px;word-break:break-all}
 .share{border-top:1.5px solid var(--line);margin-top:18px;padding-top:14px}
 .share h4{margin:0 0 4px;font:600 16px var(--sans)}
 .share p{margin:0 0 10px;color:var(--muted);font-size:14px}
@@ -475,12 +484,18 @@ footer{margin-top:48px;font-size:13px;color:var(--muted)}
   <div class="mbox wide" role="dialog" aria-modal="true" aria-labelledby="uTitle">
     <div class="uhead"><h3 id="uTitle">Usuarios</h3><button class="del" id="uClose" type="button" aria-label="Cerrar">×</button></div>
     <p class="sub" style="margin:0;color:var(--muted)"><b style="color:var(--ink)">Administrador:</b> anota resultados, edita el torneo y maneja usuarios. <b style="color:var(--ink)">Usuario:</b> solo ve los resultados.</p>
+    <div class="udone" id="uDone" hidden role="status">
+      <p id="uDoneTxt"></p>
+      <dl><dt>Usuario</dt><dd id="uDoneUser"></dd><dt>Contraseña</dt><dd id="uDonePass"></dd></dl>
+      <button class="btn sm" id="uCopy" type="button">Copiar datos</button> <button class="btn ghost sm" id="uDoneX" type="button">Listo</button>
+    </div>
     <form class="uform" id="uForm" novalidate>
       <h4 id="uFormTitle">Crear usuario</h4>
       <div class="ugrid">
         <label class="fld"><span>Usuario para entrar</span><input id="uUser" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="ej. wendy"></label>
         <label class="fld"><span>Nombre</span><input id="uName" autocomplete="off" placeholder="ej. Wendy Martínez"></label>
-        <label class="fld"><span id="uPassLbl">Contraseña</span><input id="uPass" type="password" autocomplete="new-password"></label>
+        <div class="fld"><label for="uPass"><span id="uPassLbl">Contraseña</span></label>
+          <div class="pwrap"><input id="uPass" type="text" autocomplete="off" spellcheck="false"><button class="pbtn" id="uEye" type="button" aria-pressed="true">Ocultar</button><button class="pbtn" id="uGen" type="button">Generar</button></div></div>
         <label class="fld"><span>Rol</span><select id="uRol"><option value="usuario">Usuario: solo ve resultados</option><option value="admin">Administrador: edita todo</option></select></label>
       </div>
       <label class="chk"><input type="checkbox" id="uAct" checked> Activo (puede entrar)</label>
@@ -1223,7 +1238,7 @@ function renderUsers(){
 function resetUserForm(){
   editing=null;$('#uFormTitle').textContent='Crear usuario';$('#uSave').textContent='Crear usuario';$('#uCancel').hidden=true;
   $('#uUser').disabled=false;$('#uUser').value='';$('#uName').value='';$('#uPass').value='';$('#uRol').value='usuario';$('#uAct').checked=true;
-  $('#uPassLbl').textContent='Contraseña';$('#uErr').textContent='';
+  $('#uPassLbl').textContent='Contraseña';$('#uErr').textContent='';setEye(true);
 }
 function userResult(r){
   if(r.ok){USERS=r.usuarios;renderUsers();return true}
@@ -1232,7 +1247,7 @@ function userResult(r){
   $('#uErr').textContent=r.mensaje||'No se pudo completar. Intente de nuevo.';return false;
 }
 $('#usersBtn').addEventListener('click',async()=>{
-  resetUserForm();USERS=[];renderUsers();$('#usersModal').hidden=false;$('#uUser').focus();
+  $('#uDone').hidden=true;$('#uDonePass').textContent='';resetUserForm();USERS=[];renderUsers();$('#usersModal').hidden=false;$('#uUser').focus();
   try{userResult(await apiPost({accion:'usuarios',token:SES.token}))}catch(e){$('#uErr').textContent='No hay conexión. Intente de nuevo.'}
 });
 const closeUsers=()=>{$('#usersModal').hidden=true;$('#usersBtn').focus()};
@@ -1240,13 +1255,35 @@ $('#uClose').addEventListener('click',closeUsers);
 $('#usersModal').addEventListener('click',e=>{if(e.target===$('#usersModal'))closeUsers()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#usersModal').hidden&&$('#modal').hidden)closeUsers()});
 $('#uCancel').addEventListener('click',resetUserForm);
+function setEye(show){const i=$('#uPass'),e=$('#uEye');i.type=show?'text':'password';e.textContent=show?'Ocultar':'Mostrar';e.setAttribute('aria-pressed',String(show))}
+$('#uEye').addEventListener('click',()=>{setEye($('#uPass').type==='password');$('#uPass').focus()});
+$('#uGen').addEventListener('click',()=>{
+  const A='abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789',r=new Uint32Array(8);crypto.getRandomValues(r);
+  $('#uPass').value=Array.from(r,x=>A[x%A.length]).join('');setEye(true);$('#uPass').focus();
+});
+function showDone(txt,u,c){
+  $('#uDoneTxt').textContent=txt;$('#uDoneUser').textContent=u;$('#uDonePass').textContent=c;$('#uDone').hidden=false;$('#uCopy').focus();
+}
+$('#uDoneX').addEventListener('click',()=>{$('#uDone').hidden=true;$('#uDonePass').textContent='';$('#uUser').focus()});
+$('#uCopy').addEventListener('click',async()=>{
+  const t='Torneo relámpago\nUsuario: '+$('#uDoneUser').textContent+'\nContraseña: '+$('#uDonePass').textContent;
+  let ok=false;
+  try{await navigator.clipboard.writeText(t);ok=true}catch(e){
+    const ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();
+    try{ok=document.execCommand('copy')}catch(e2){}ta.remove();
+  }
+  toast(ok?'Datos copiados. Péguelos en WhatsApp o en un correo.':'No se pudo copiar. Escríbalos a mano.');
+});
 $('#uForm').addEventListener('submit',async e=>{
   e.preventDefault();
   const b={accion:'guardarUsuario',token:SES.token,nuevo:!editing,usuario:$('#uUser').value.trim().toLowerCase(),nombre:$('#uName').value.trim(),clave:$('#uPass').value,rol:$('#uRol').value,activo:$('#uAct').checked};
   if(!b.usuario||!b.nombre){$('#uErr').textContent='Escriba el usuario y el nombre.';return}
   if(!editing&&!b.clave){$('#uErr').textContent='Escriba una contraseña para el usuario nuevo.';return}
   const go=$('#uSave'),lbl=go.textContent;go.disabled=true;go.textContent='Guardando…';$('#uErr').textContent='';
-  try{if(userResult(await apiPost(b))){toast(editing?'Usuario actualizado.':'Usuario creado: '+b.usuario+'.');resetUserForm()}}
+  try{if(userResult(await apiPost(b))){
+    if(b.clave)showDone(editing?'Contraseña cambiada para '+b.nombre+'. Entréguele estos datos:':'Usuario creado para '+b.nombre+'. Entréguele estos datos:',b.usuario,b.clave);
+    else toast('Usuario actualizado.');
+    resetUserForm()}}
   catch(ex){$('#uErr').textContent='No hay conexión. Intente de nuevo.'}
   go.disabled=false;if(go.textContent==='Guardando…')go.textContent=lbl;
 });
