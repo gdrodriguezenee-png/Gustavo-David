@@ -229,6 +229,7 @@ body[data-view="gate"] main,body[data-view="gate"] .sesbar{display:none}
 .tact button.danger{color:var(--danger)}
 .off td{color:var(--muted)}
 .pwrap{display:flex;gap:6px}
+.gbox .pbtn{min-width:78px;font-size:14px}
 .pwrap input{flex:1;min-width:0}
 .pbtn{flex:none;font:600 13px var(--sans);padding:0 10px;border-radius:6px;border:1.5px solid var(--line);background:var(--paper);color:var(--ink);cursor:pointer}
 .udone{background:var(--mint);border-left:4px solid var(--marker);border-radius:8px;padding:12px 14px;margin:0 0 14px}
@@ -320,7 +321,7 @@ footer{margin-top:48px;font-size:13px;color:var(--muted)}
       <h2>Iniciar sesión</h2>
       <p class="gtxt" id="lgMsg">Entre con el usuario que le dio el administrador.</p>
       <label class="fld"><span>Usuario</span><input id="lgUser" autocomplete="username" autocapitalize="none" spellcheck="false"></label>
-      <label class="fld"><span>Contraseña</span><input id="lgPass" type="password" autocomplete="current-password"></label>
+      <div class="fld"><label for="lgPass"><span>Contraseña</span></label><div class="pwrap"><input id="lgPass" type="password" autocomplete="current-password"><button class="pbtn" type="button" data-eye="lgPass" aria-pressed="false" aria-label="Mostrar contraseña">Mostrar</button></div></div>
       <p class="lgerr" id="lgErr" role="alert"></p>
       <button class="btn" id="lgGo" type="submit">Entrar</button>
       <button class="linkbtn" id="toRegister" type="button">¿No tiene usuario? Crear una cuenta</button>
@@ -331,7 +332,7 @@ footer{margin-top:48px;font-size:13px;color:var(--muted)}
       <p class="gtxt">Su cuenta podrá ver los resultados del torneo. Para anotar resultados, pida al administrador que le dé ese permiso.</p>
       <label class="fld"><span>Nombre completo</span><input id="rgName" autocomplete="name" maxlength="60"></label>
       <label class="fld"><span>Usuario para entrar</span><input id="rgUser" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="30" placeholder="ej. jperez"></label>
-      <label class="fld"><span>Contraseña (mínimo 4 caracteres)</span><input id="rgPass" type="password" autocomplete="new-password"></label>
+      <div class="fld"><label for="rgPass"><span>Contraseña (mínimo 4 caracteres)</span></label><div class="pwrap"><input id="rgPass" type="password" autocomplete="new-password"><button class="pbtn" type="button" data-eye="rgPass,rgPass2" aria-pressed="false" aria-label="Mostrar contraseñas">Mostrar</button></div></div>
       <label class="fld"><span>Repita la contraseña</span><input id="rgPass2" type="password" autocomplete="new-password"></label>
       <p class="lgerr" id="rgErr" role="alert"></p>
       <button class="btn" id="rgGo" type="submit">Crear cuenta y entrar</button>
@@ -1090,7 +1091,7 @@ async function apiPost(body,url){const r=await fetch(url||API,{method:'POST',hea
 const apiRead=()=>apiPost({accion:'leer',token:SES.token});
 function setView(v){document.body.dataset.view=v;$('#gate').hidden=v!=='gate'}
 function showGate(which,msg){
-  setView('gate');$('#setupForm').hidden=which!=='setup';$('#loginForm').hidden=which!=='login';$('#regForm').hidden=which!=='register';
+  setView('gate');if(typeof hideGatePasswords==='function')hideGatePasswords();$('#setupForm').hidden=which!=='setup';$('#loginForm').hidden=which!=='login';$('#regForm').hidden=which!=='register';
   $('#changeApi').hidden=!!API_URL;
   if(which==='login'){$('#lgMsg').textContent=msg||'Entre con el usuario que le dio el administrador.';$('#lgErr').textContent='';$('#lgPass').value='';setTimeout(()=>$('#lgUser').focus(),0)}
   else if(which==='register'){$('#rgErr').textContent='';$('#rgPass').value='';$('#rgPass2').value='';setTimeout(()=>$('#rgName').focus(),0)}
@@ -1187,6 +1188,13 @@ function localMode(){
 $('#goLocal').addEventListener('click',()=>{ls.set(LOCAL_KEY,'1');ONLINE=false;SES=null;localMode()});
 $('#changeApi').addEventListener('click',()=>showGate('setup'));
 $('#toRegister').addEventListener('click',()=>showGate('register'));
+function eyeSet(btn,show){
+  btn.dataset.eye.split(',').forEach(id=>{const i=document.getElementById(id);if(i)i.type=show?'text':'password'});
+  btn.textContent=show?'Ocultar':'Mostrar';btn.setAttribute('aria-pressed',String(show));
+  btn.setAttribute('aria-label',(show?'Ocultar':'Mostrar')+(btn.dataset.eye.includes(',')?' contraseñas':' contraseña'));
+}
+$$('#gate [data-eye]').forEach(b=>b.addEventListener('click',()=>{eyeSet(b,b.getAttribute('aria-pressed')!=='true');document.getElementById(b.dataset.eye.split(',')[0]).focus()}));
+const hideGatePasswords=()=>$$('#gate [data-eye]').forEach(b=>eyeSet(b,false));
 $('#toLogin').addEventListener('click',()=>showGate('login'));
 $('#rgUser').addEventListener('input',e=>{const i=e.target,v=i.value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9._-]/g,'');if(v!==i.value)i.value=v});
 $('#regForm').addEventListener('submit',async e=>{
