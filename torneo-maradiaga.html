@@ -547,7 +547,7 @@ footer{margin-top:48px;font-size:13px;color:var(--muted)}
       <button class="btn sm" id="uCopy" type="button">Copiar datos</button> <button class="btn ghost sm" id="uDoneX" type="button">Listo</button>
     </div>
     <form class="uform" id="uForm" novalidate>
-      <h4 id="uFormTitle">Crear usuario</h4>
+      <h4 id="uFormTitle">Crear usuario</h4><p class="sub" id="uCount" style="margin:-6px 0 10px;color:var(--muted)"></p>
       <div class="ugrid">
         <label class="fld"><span>Usuario para entrar</span><input id="uUser" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="ej. wendy"></label>
         <label class="fld"><span>Nombre</span><input id="uName" autocomplete="off" placeholder="ej. Wendy Martínez"></label>
@@ -1470,7 +1470,14 @@ $('#logoutBtn').addEventListener('click',async()=>{
   SES=null;ls.del(SES_KEY);connected=false;$('#lgUser').value='';showGate('login','Sesión cerrada. Puede entrar con otro usuario.');
 });
 /* administración de usuarios */
-let USERS=[],editing=null;
+let USERS=[],editing=null,MAXU=20;
+const usersFull=()=>USERS.length>=MAXU;
+function paintUserCount(){
+  const full=usersFull(),c=$('#uCount');
+  c.textContent=USERS.length?USERS.length+' de '+MAXU+' usuarios'+(full?'. Se llegó al máximo: elimine un usuario para crear otro. Los desactivados también ocupan cupo.':'.'):'';
+  c.style.color=full?'var(--amber)':'var(--muted)';
+  if(!editing){$('#uSave').disabled=full;$$('#uForm input, #uForm select').forEach(e=>e.disabled=full)}
+}
 function renderUsers(){
   $('#uTable tbody').innerHTML=USERS.length?USERS.map(u=>`<tr class="${u.activo?'':'off'}"><td class="tn">${esc(u.usuario)}</td><td class="tn">${esc(u.nombre)}</td><td>${u.rol==='admin'?'Administrador':'Usuario'}</td><td>${u.activo?'Activo':'Inactivo'}</td>
     <td class="tact"><button type="button" data-u="${esc(u.usuario)}" data-a="edit">Editar</button>${SES&&u.usuario.toLowerCase()===SES.usuario.toLowerCase()?'':`<button type="button" class="danger" data-u="${esc(u.usuario)}" data-a="del">Eliminar</button>`}</td></tr>`).join('')
@@ -1480,9 +1487,10 @@ function resetUserForm(){
   editing=null;$('#uFormTitle').textContent='Crear usuario';$('#uSave').textContent='Crear usuario';$('#uCancel').hidden=true;
   $('#uUser').disabled=false;$('#uUser').value='';$('#uName').value='';$('#uPass').value='';$('#uRol').value='usuario';$('#uAct').checked=true;
   $('#uPassLbl').textContent='Contraseña';$('#uErr').textContent='';setEye(true);
+  $$('#uForm input, #uForm select').forEach(e=>e.disabled=false);$('#uSave').disabled=false;paintUserCount();
 }
 function userResult(r){
-  if(r.ok){USERS=r.usuarios;renderUsers();return true}
+  if(r.ok){USERS=r.usuarios;if(r.max)MAXU=r.max;renderUsers();paintUserCount();return true}
   if(r.error==='sesion'){sessionLost();return false}
   if(r.error==='permiso'){$('#usersModal').hidden=true;SES.rol='usuario';ls.set(SES_KEY,JSON.stringify(SES));paintSession();toast('Su usuario ya no es administrador.');return false}
   $('#uErr').textContent=r.mensaje||'No se pudo completar. Intente de nuevo.';return false;
@@ -1526,13 +1534,13 @@ $('#uForm').addEventListener('submit',async e=>{
     else toast('Usuario actualizado.');
     resetUserForm()}}
   catch(ex){$('#uErr').textContent='No hay conexión. Intente de nuevo.'}
-  go.disabled=false;if(go.textContent==='Guardando…')go.textContent=lbl;
+  go.disabled=!editing&&usersFull();if(go.textContent==='Guardando…')go.textContent=lbl;
 });
 $('#uTable').addEventListener('click',async e=>{
   const b=e.target.closest('button[data-a]');if(!b)return;
   const u=USERS.find(x=>x.usuario===b.dataset.u);if(!u)return;
   if(b.dataset.a==='edit'){
-    editing=u.usuario;$('#uFormTitle').textContent='Editar a '+u.usuario;$('#uSave').textContent='Guardar cambios';$('#uCancel').hidden=false;
+    editing=u.usuario;$$('#uForm input, #uForm select').forEach(e=>e.disabled=false);$('#uSave').disabled=false;$('#uFormTitle').textContent='Editar a '+u.usuario;$('#uSave').textContent='Guardar cambios';$('#uCancel').hidden=false;
     $('#uUser').value=u.usuario;$('#uUser').disabled=true;$('#uName').value=u.nombre;$('#uPass').value='';$('#uRol').value=u.rol;$('#uAct').checked=u.activo;
     $('#uPassLbl').textContent='Contraseña nueva (déjela vacía para no cambiarla)';$('#uErr').textContent='';$('#uName').focus();
     return;
