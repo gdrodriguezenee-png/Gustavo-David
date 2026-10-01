@@ -71,6 +71,15 @@ h2{font:700 32px/1.15 var(--hand);margin:52px 0 6px;color:var(--ink)}
 .group.nodraw .tw,.group.nodraw .fixtures{display:none}
 .group.nodraw .gwait{display:block}
 .drawmsg.warn{color:var(--amber)}
+.drawbtns{display:flex;flex-wrap:wrap;gap:8px}
+#lgText{width:100%;min-height:260px;font:15px/1.5 var(--sans);color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:6px;padding:10px 12px;resize:vertical}
+.lgprev{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:10px 0 4px}
+.lgprev div{border:1.5px solid var(--line);border-radius:8px;padding:8px 10px;font-size:14px}
+.lgprev b{display:block;font:700 18px var(--hand);color:var(--marker);margin-bottom:2px}
+.lgprev ol{margin:0;padding-left:20px}
+.lgprev .bad{border-color:var(--danger)}
+.lgprev .bad b{color:var(--danger)}
+@media (max-width:560px){.lgprev{grid-template-columns:1fr}}
 .tin{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
 .gb{flex:none;min-width:40px;height:30px;padding:0 6px;border-radius:999px;display:grid;place-items:center;font:700 15px var(--cond);color:var(--marker);border:2px solid var(--marker)}
 .gb.none{color:var(--muted);border-color:var(--line)}
@@ -205,7 +214,7 @@ input:disabled{opacity:.45}
 .fld span{display:block;font-size:14px;font-weight:600;margin-bottom:4px}
 .fld input{width:100%;font:inherit;font-size:16px;padding:10px 12px;color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:6px}
 .lgerr{color:var(--danger);font-size:14px;min-height:1.2em;margin:0 0 10px}
-body.ro .tdel,body.ro #addTeam,body.ro #draw,body.ro #draw2,body.ro #reset,body.ro .addp,body.ro .bulk,body.ro .step,body.ro .del,body.ro .pending .go{display:none}
+body.ro .tdel,body.ro #addTeam,body.ro #draw,body.ro #draw2,body.ro #loadGroups,body.ro #reset,body.ro .addp,body.ro .bulk,body.ro .step,body.ro .del,body.ro .pending .go{display:none}
 body.ro .gnum{min-width:0}
 body[data-view="gate"] main,body[data-view="gate"] .sesbar{display:none}
 .gate{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:24px 16px}
@@ -369,7 +378,7 @@ footer{margin-top:48px;font-size:13px;color:var(--muted)}
     <div class="drawbox">
       <div class="drawtop">
         <p class="drawmsg" id="drawMsg" aria-live="polite"></p>
-        <button class="btn" id="draw2" type="button">Sortear grupos</button>
+        <div class="drawbtns"><button class="btn ghost" id="loadGroups" type="button">Cargar grupos ya sorteados</button><button class="btn" id="draw2" type="button">Sortear grupos</button></div>
       </div>
       <div class="dgroups" id="dgroups"></div>
     </div>
@@ -484,6 +493,16 @@ footer{margin-top:48px;font-size:13px;color:var(--muted)}
   </div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 </main>
+<div class="modal" id="groupsModal" hidden>
+  <div class="mbox wide" role="dialog" aria-modal="true" aria-labelledby="lgTitle2">
+    <div class="uhead"><h3 id="lgTitle2">Cargar grupos ya sorteados</h3><button class="del" id="lgClose" type="button" aria-label="Cerrar">×</button></div>
+    <p class="sub" style="margin:0 0 10px;color:var(--muted)">Para cuando el sorteo se hizo fuera de la página. Escriba “Grupo A” y debajo sus equipos en orden (el primero es A-1), y así con B y C. También puede copiar las columnas de los grupos desde Excel y pegarlas aquí.</p>
+    <textarea id="lgText" spellcheck="false" aria-label="Equipos por grupo" placeholder="Grupo A&#10;Legal&#10;Fosode&#10;…&#10;Grupo B&#10;…&#10;Grupo C&#10;…"></textarea>
+    <div class="lgprev" id="lgPrev" aria-live="polite"></div>
+    <p class="lgerr" id="lgErr2" role="alert"></p>
+    <div class="uact"><button class="btn ghost" id="lgCancel2" type="button">Cancelar</button><button class="btn" id="lgApply" type="button">Cargar grupos</button></div>
+  </div>
+</div>
 <div class="modal" id="usersModal" hidden>
   <div class="mbox wide" role="dialog" aria-modal="true" aria-labelledby="uTitle">
     <div class="uhead"><h3 id="uTitle">Usuarios</h3><button class="del" id="uClose" type="button" aria-label="Cerrar">×</button></div>
@@ -1019,7 +1038,7 @@ function paintDraw(G){
 }
 function setDrawMsg(){
   $('#drawMsg').innerHTML=S.drawn
-    ?'Sorteo realizado'+(S.drawnAt?' el <b>'+esc(S.drawnAt)+'</b>':'')+(/\.$/.test(S.drawnAt||'')?' ':'. ')+'Cada equipo quedó donde salió.'
+    ?(S.drawManual?'Grupos cargados del sorteo hecho aparte':'Sorteo realizado')+(S.drawnAt?' el <b>'+esc(S.drawnAt)+'</b>':'')+(/\.$/.test(S.drawnAt||'')?' ':'. ')+'Cada equipo quedó donde salió.'
     :S.drawVoid?'El sorteo anterior se anuló porque se escribieron nombres de equipos que se habían sorteado sin nombre. Cuando termine de anotar los equipos, sortee de nuevo.'
     :'Todavía no se ha hecho el sorteo de grupos. Anote primero los nombres de los equipos.';
   $('#drawMsg').classList.toggle('warn',!S.drawn&&!!S.drawVoid);
@@ -1041,7 +1060,7 @@ async function runDraw(){
     $('#drawMsg').innerHTML=`Equipo ${i+1} de ${N}: <b>${esc(nm(t))}</b> sale para el <b>Grupo ${L}</b>, posición ${L}-${p+1}.`;
     if(!fast)await sleep(650);
   }
-  S.groups=G;S.drawn=true;S.drawNames=S.teams.slice();S.drawVoid=false;
+  S.groups=G;S.drawn=true;S.drawNames=S.teams.slice();S.drawVoid=false;S.drawManual=false;
   S.drawnAt=new Date().toLocaleString('es-HN',{dateStyle:'short',timeStyle:'short'});
   save();drawing=false;refresh();btns.forEach(b=>b.disabled=false);
   document.body.classList.remove('shuffled');void document.body.offsetWidth;document.body.classList.add('shuffled');
@@ -1056,6 +1075,77 @@ async function onDraw(){
   runDraw();
 }
 $('#draw2').addEventListener('click',onDraw);
+
+/* ---------- cargar grupos sorteados fuera de la página ---------- */
+function parseGroups(txt){
+  const G={A:[],B:[],C:[]},lines=String(txt).replace(/\r/g,'').split('\n');
+  const clean=v=>String(v).replace(/^\s*\d+\s*[.)\-–]?\s+/,'').replace(/\s+/g,' ').trim();
+  if(lines.some(l=>l.includes('\t'))){
+    lines.forEach(l=>{
+      if(!l.trim())return;let c=l.split('\t');
+      if(c.length>3&&(!c[0].trim()||/^\d+$/.test(c[0].trim())))c=c.slice(1);
+      if(c.every(x=>!x.trim()||/^grupo\b/i.test(x.trim())))return;
+      c.slice(0,3).forEach((x,k)=>{const v=clean(x);if(v)G[LETTERS[k]].push(v)});
+    });
+  }else{
+    let cur=null;
+    lines.forEach(l=>{
+      const t=l.trim();if(!t)return;
+      const m=t.match(/^grupo\s*["“”'«]?\s*([abc])\s*["“”'»]?\s*[:.\-–]?\s*(.*)$/i);
+      if(m){cur=m[1].toUpperCase();if(m[2].trim())m[2].split(/[,;]/).forEach(v=>{v=clean(v);if(v)G[cur].push(v)});return}
+      if(cur){const v=clean(t);if(v)G[cur].push(v)}
+    });
+  }
+  return G;
+}
+function checkGroups(G){
+  const all=LETTERS.flatMap(L=>G[L]),errs=[];
+  if(!all.length)return['Escriba los equipos de cada grupo.'];
+  LETTERS.forEach(L=>{const n=G[L].length;if(n<3||n>6)errs.push('El Grupo '+L+' tiene '+plural(n,'equipo','equipos')+': cada grupo debe tener de 3 a 6.')});
+  if(all.length<MIN_T||all.length>MAX_T)errs.push('En total hay '+all.length+' equipos: deben ser de '+MIN_T+' a '+MAX_T+'.');
+  const seen={};all.forEach(n=>{const k=normTxt(n);if(seen[k])errs.push('“'+n+'” está repetido.');seen[k]=1});
+  return errs;
+}
+function previewGroups(){
+  const G=parseGroups($('#lgText').value),errs=checkGroups(G);
+  $('#lgPrev').innerHTML=LETTERS.map(L=>{const n=G[L].length,bad=n<3||n>6;
+    return `<div class="${bad?'bad':''}"><b>Grupo ${L} (${n})</b>${n?'<ol>'+G[L].map(x=>'<li>'+esc(x)+'</li>').join('')+'</ol>':'<span style="color:var(--muted)">Sin equipos</span>'}</div>`}).join('');
+  $('#lgErr2').textContent=$('#lgText').value.trim()?errs.join(' '):'';
+  return{G,errs};
+}
+$('#loadGroups').addEventListener('click',()=>{
+  if(drawing)return;
+  $('#lgText').value=S.drawn?LETTERS.map(L=>'Grupo '+L+'\n'+S.groups[L].map(t=>nm(t)).join('\n')).join('\n'):'';
+  previewGroups();$('#groupsModal').hidden=false;$('#lgText').focus();
+});
+const closeGroupsModal=()=>{$('#groupsModal').hidden=true;$('#loadGroups').focus()};
+$('#lgClose').addEventListener('click',closeGroupsModal);
+$('#lgCancel2').addEventListener('click',closeGroupsModal);
+$('#groupsModal').addEventListener('click',e=>{if(e.target===$('#groupsModal'))closeGroupsModal()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#groupsModal').hidden&&$('#modal').hidden)closeGroupsModal()});
+$('#lgText').addEventListener('input',previewGroups);
+$('#lgApply').addEventListener('click',async()=>{
+  const {G,errs}=previewGroups();if(errs.length){$('#lgText').focus();return}
+  const names=LETTERS.flatMap(L=>G[L]);
+  const oldIdx={};S.teams.forEach((n,i)=>{oldIdx[normTxt(nm(i))]=i});
+  const map={};names.forEach((n,j)=>{const o=oldIdx[normTxt(n)];if(o!=null)map[o]=j});
+  const lost=S.scorers.filter(p=>map[p.team]==null).length;
+  const msg='Los equipos de la lista reemplazan a los actuales y quedan en esos grupos y posiciones.'+
+    (hasResults()?' Se borran los marcadores y goles anotados.':'')+
+    (lost?' Se borran '+plural(lost,'jugador','jugadores')+' de equipos que no están en la lista.':' Los porteros y jugadores de equipos con el mismo nombre se conservan.');
+  $('#groupsModal').hidden=true;
+  const ok=await askConfirm('¿Cargar estos grupos?',msg,'Cargar grupos');
+  if(!ok){$('#groupsModal').hidden=false;return}
+  const K={};Object.keys(S.keepers).forEach(k=>{if(map[k]!=null)K[map[k]]=S.keepers[k]});
+  clearResults();
+  S.scorers=S.scorers.filter(p=>map[p.team]!=null).map(p=>Object.assign(p,{team:map[p.team]}));
+  S.keepers=K;S.teams=names.slice();
+  let i=0;S.groups={};LETTERS.forEach(L=>{S.groups[L]=G[L].map(()=>i++)});
+  S.drawn=true;S.drawManual=true;S.drawVoid=false;S.drawNames=S.teams.slice();
+  S.drawnAt=new Date().toLocaleString('es-HN',{dateStyle:'short',timeStyle:'short'});
+  rosterTeam=null;save();rebuildAll();
+  toast('Grupos cargados: '+LETTERS.map(L=>'Grupo '+L+' con '+G[L].length).join(', ')+'.');
+});
 $('#reset').addEventListener('click',async()=>{
   if(drawing)return;
   if(!hasResults()&&!S.drawn){toast('No hay resultados ni sorteo para borrar.');return}
@@ -1339,7 +1429,7 @@ $('#shareDl').addEventListener('click',()=>{
 window.addEventListener('beforeunload',e=>{if(ONLINE&&(dirty||saving)){e.preventDefault();e.returnValue=''}});
 
 /* ---------- agregar y quitar equipos ---------- */
-function resetStructure(){clearResults();S.drawn=false;S.drawnAt=null;S.drawNames=null;S.drawVoid=false;S.groups=defaultGroups(S.teams.length)}
+function resetStructure(){clearResults();S.drawManual=false;S.drawn=false;S.drawnAt=null;S.drawNames=null;S.drawVoid=false;S.groups=defaultGroups(S.teams.length)}
 const needsReset=()=>S.drawn||hasResults();
 async function addTeam(){
   if(drawing)return;const N=S.teams.length;
