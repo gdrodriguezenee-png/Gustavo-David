@@ -72,6 +72,13 @@ h2{font:700 32px/1.15 var(--hand);margin:52px 0 6px;color:var(--ink)}
 .group.nodraw .gwait{display:block}
 .drawmsg.warn{color:var(--amber)}
 .drawbtns{display:flex;flex-wrap:wrap;gap:8px}
+.lockbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 14px;border-radius:8px;padding:10px 14px;margin:0 0 12px;background:var(--mint);border-left:4px solid var(--marker)}
+.lockbar[hidden]{display:none}
+.lockbar p{margin:0;font-size:14.5px}
+.lockbar.off{background:var(--amber-bg);border-left-color:var(--amber)}
+body.locked #draw2,body.locked #loadGroups,body.locked #drawMatches,body.locked #normalOrder,body.locked #addTeam,body.locked .tdel{display:none}
+body.locked #reset{opacity:.45}
+body.ro .lockbar .btn{display:none}
 #lgText{width:100%;min-height:260px;font:15px/1.5 var(--sans);color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:6px;padding:10px 12px;resize:vertical}
 .lgprev{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:10px 0 4px}
 .lgprev div{border:1.5px solid var(--line);border-radius:8px;padding:8px 10px;font-size:14px}
@@ -393,6 +400,7 @@ footer{margin-top:48px;font-size:13px;color:var(--muted)}
     <div class="teams" id="teams"></div>
     <div class="teamact"><button class="btn ghost" id="addTeam" type="button">+ Agregar equipo</button><span id="teamCount"></span></div>
     <div class="drawbox">
+      <div class="lockbar" id="lockBar" hidden><p id="lockTxt"></p><button class="btn sm" id="lockBtn" type="button"></button></div>
       <div class="drawtop">
         <p class="drawmsg" id="drawMsg" aria-live="polite"></p>
         <div class="drawbtns"><button class="btn ghost" id="loadGroups" type="button">Cargar grupos ya sorteados</button><button class="btn" id="draw2" type="button">Sortear grupos</button></div>
@@ -725,7 +733,7 @@ function buildTeams(){
     kp.value=S.keepers[i]||'';kp.setAttribute('aria-label','Portero del equipo '+(i+1));
     inp.addEventListener('input',()=>{
       const before=S.drawNames?S.drawNames[i]:S.teams[i];S.teams[i]=inp.value;
-      if(S.drawn&&!hasResults()&&isPh(before,i))voidDraw();
+      if(S.drawn&&!isLocked()&&!hasResults()&&isPh(before,i))voidDraw();
       save();refresh()});
     kp.addEventListener('input',()=>{S.keepers[i]=kp.value;save();refresh()});
     box.appendChild(div);
@@ -813,7 +821,7 @@ function refresh(){
   });
   $('#groups').classList.toggle('numbered',!!(S.drawn&&S.order));
   $$('.fx').forEach(f=>{const n=matchNo(f.dataset.g+f.dataset.k);f.querySelector('.pn').textContent=n?'P'+n:''});
-  renderProgram();
+  renderProgram();paintLock();
   $$('.rest').forEach(r=>r.textContent='Descansa: '+nm(S.groups[r.dataset.g][+r.dataset.r]));
   const N=S.teams.length,z=LETTERS.map(L=>S.groups[L].length);
   $('#teamCount').textContent=`${N} equipos: Grupo A de ${z[0]}, B de ${z[1]} y C de ${z[2]}. Mínimo ${MIN_T}, máximo ${MAX_T}.`;
@@ -1116,8 +1124,32 @@ async function runDraw(){
   document.body.classList.remove('shuffled');void document.body.offsetWidth;document.body.classList.add('shuffled');
   setTimeout(()=>document.body.classList.remove('shuffled'),700);
 }
+/* ---------- bloqueo de sorteos ---------- */
+const isLocked=()=>!!(S.locked&&S.drawn);
+function lockedMsg(){toast('Los sorteos están bloqueados. Para cambiarlos, primero toque "Desbloquear sorteos" en el recuadro del sorteo.')}
+function paintLock(){
+  const bar=$('#lockBar'),L=isLocked();
+  document.body.classList.toggle('locked',L);
+  bar.hidden=!S.drawn;bar.classList.toggle('off',!L);
+  $('#lockTxt').innerHTML=L
+    ?'🔒 <b>Sorteos bloqueados</b>'+(S.lockedAt?' desde el '+esc(S.lockedAt):'')+(S.lockedBy?' por '+esc(S.lockedBy):'')+'. Nadie puede volver a sortear, cargar grupos, cambiar turnos ni agregar o quitar equipos.'
+    :'Los sorteos están <b>desbloqueados</b>. Cuando estén listos, bloquéelos para que nadie los cambie por error.';
+  $('#lockBtn').textContent=L?'Desbloquear sorteos':'🔒 Bloquear sorteos';
+  $('#lockBtn').className='btn sm'+(L?' ghost':'');
+  $('#reset').title=L?'Bloqueado: primero desbloquee los sorteos':'';
+}
+$('#lockBtn').addEventListener('click',async()=>{
+  if(isLocked()){
+    if(!await askConfirm('¿Desbloquear los sorteos?','Al desbloquear se podrá volver a sortear grupos y turnos, cargar grupos y agregar o quitar equipos. Hágalo solo si de verdad hay que corregir el sorteo.','Desbloquear'))return;
+    S.locked=false;save();refresh();toast('Sorteos desbloqueados. Recuerde bloquearlos de nuevo al terminar.');
+  }else{
+    S.locked=true;S.lockedAt=new Date().toLocaleString('es-HN',{dateStyle:'short',timeStyle:'short'});S.lockedBy=SES?SES.nombre:'';
+    save();refresh();toast('Sorteos bloqueados.');
+  }
+});
 async function onDraw(){
-  if(drawing)return;
+  if(drawing)return;if(isLocked()){lockedMsg();return}
+  if(S.drawn&&!hasResults()&&!await askConfirm('¿Hacer un sorteo nuevo?','Ya hay un sorteo hecho'+(S.drawnAt?' el '+S.drawnAt:'')+'. Si sortea de nuevo, los equipos cambian de grupo y de posición.','Sí, sortear de nuevo'))return;
   if(hasResults()&&!await askConfirm('¿Hacer un nuevo sorteo?','Ya hay marcadores anotados. Un nuevo sorteo cambia los grupos y borra todos los resultados.','Sortear de nuevo'))return;
   const sin=S.teams.map((n,i)=>isPh(n,i)?nm(i):null).filter(Boolean);
   if(sin.length&&!await askConfirm('Hay '+plural(sin.length,'equipo sin nombre','equipos sin nombre'),
@@ -1157,14 +1189,17 @@ function makeOrder(){
   return best.map(m=>m.key);
 }
 $('#drawMatches').addEventListener('click',async()=>{
-  if(drawing||!S.drawn)return;
+  if(drawing||!S.drawn)return;if(isLocked()){lockedMsg();return}
+  if(Array.isArray(S.order)&&!await askConfirm('¿Sortear los turnos de nuevo?','Ya hay un orden de turnos sorteado. Si sortea de nuevo, cambia el número de turno de los partidos.','Sí, sortear de nuevo'))return;
   S.order=makeOrder();
   S.matchAt=new Date().toLocaleString('es-HN',{dateStyle:'short',timeStyle:'short'});
   save();rebuildAll();
   $('#prog').scrollIntoView({behavior:reduceMotion()?'auto':'smooth',block:'start'});
   toast('Turnos sorteados. Los cruces de cada jornada siguen igual.');
 });
-$('#normalOrder').addEventListener('click',()=>{S.order=null;S.matchAt=null;save();rebuildAll();toast('Se volvió al orden por jornada y grupo.')});
+$('#normalOrder').addEventListener('click',async()=>{if(isLocked()){lockedMsg();return}
+  if(!await askConfirm('¿Volver al orden por jornada?','Se quita el orden de turnos sorteado y los partidos vuelven a numerarse por jornada y grupo.','Volver al orden'))return;
+  S.order=null;S.matchAt=null;save();rebuildAll();toast('Se volvió al orden por jornada y grupo.')});
 
 /* ---------- cargar grupos sorteados fuera de la página ---------- */
 function parseGroups(txt){
@@ -1204,7 +1239,7 @@ function previewGroups(){
   return{G,errs};
 }
 $('#loadGroups').addEventListener('click',()=>{
-  if(drawing)return;
+  if(drawing)return;if(isLocked()){lockedMsg();return}
   $('#lgText').value=S.drawn?LETTERS.map(L=>'Grupo '+L+'\n'+S.groups[L].map(t=>nm(t)).join('\n')).join('\n'):'';
   previewGroups();$('#groupsModal').hidden=false;$('#lgText').focus();
 });
@@ -1237,7 +1272,7 @@ $('#lgApply').addEventListener('click',async()=>{
   toast('Grupos cargados: '+LETTERS.map(L=>'Grupo '+L+' con '+G[L].length).join(', ')+'.');
 });
 $('#reset').addEventListener('click',async()=>{
-  if(drawing)return;
+  if(drawing)return;if(isLocked()){lockedMsg();return}
   if(!hasResults()&&!S.drawn){toast('No hay resultados ni sorteo para borrar.');return}
   if(!await askConfirm('¿Borrar resultados y sorteo?','Se borran el sorteo de grupos, los marcadores de grupos y llaves y los goles de los goleadores. Se mantienen los equipos con sus porteros y jugadores.','Borrar todo menos los equipos'))return;
   resetStructure();save();rebuildAll();toast('Se borraron los resultados y el sorteo. Los equipos se mantienen.');
@@ -1520,10 +1555,10 @@ $('#shareDl').addEventListener('click',()=>{
 window.addEventListener('beforeunload',e=>{if(ONLINE&&(dirty||saving)){e.preventDefault();e.returnValue=''}});
 
 /* ---------- agregar y quitar equipos ---------- */
-function resetStructure(){clearResults();clearMatchDraw();S.drawManual=false;S.drawn=false;S.drawnAt=null;S.drawNames=null;S.drawVoid=false;S.groups=defaultGroups(S.teams.length)}
+function resetStructure(){clearResults();S.locked=false;clearMatchDraw();S.drawManual=false;S.drawn=false;S.drawnAt=null;S.drawNames=null;S.drawVoid=false;S.groups=defaultGroups(S.teams.length)}
 const needsReset=()=>S.drawn||hasResults();
 async function addTeam(){
-  if(drawing)return;const N=S.teams.length;
+  if(drawing)return;if(isLocked()){lockedMsg();return}const N=S.teams.length;
   if(N>=MAX_T){toast('El máximo es '+MAX_T+' equipos (6 por grupo).');return}
   if(needsReset()&&!await askConfirm('¿Agregar un equipo?','Al cambiar la cantidad de equipos cambian los grupos: se borra el sorteo y los resultados (marcadores y goles). Los jugadores y porteros se mantienen.','Agregar equipo'))return;
   S.teams.push('Equipo '+(N+1));resetStructure();save();rebuildAll();
@@ -1531,7 +1566,7 @@ async function addTeam(){
   toast('Equipo agregado. Escriba su nombre.');
 }
 async function removeTeam(i){
-  if(drawing)return;const N=S.teams.length;
+  if(drawing)return;if(isLocked()){lockedMsg();return}const N=S.teams.length;
   if(N<=MIN_T){toast('El formato necesita al menos '+MIN_T+' equipos: 3 por grupo.');return}
   const np=S.scorers.filter(p=>p.team===i).length,name=nm(i);
   const msg=(np?'Se borran también sus '+plural(np,'jugador registrado','jugadores registrados')+'.':'El equipo se quita de la lista.')+
