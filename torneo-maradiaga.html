@@ -172,6 +172,23 @@ input:disabled{opacity:.45}
 .std tr.t td{background:var(--amber-bg)} .std tr.t td:first-child{box-shadow:inset 3px 0 0 var(--amber)}
 .jor h4{margin:14px 0 4px;font:600 13px var(--sans);color:var(--muted)}
 .fx{display:grid;grid-template-columns:1fr 42px 10px 42px 1fr;align-items:center;gap:6px;padding:3px 0}
+.fx .pn{display:none;font:700 13px var(--cond);color:var(--marker);border:1.5px solid var(--marker);border-radius:5px;text-align:center;padding:1px 0}
+#groups.numbered .fx{grid-template-columns:34px 1fr 42px 10px 42px 1fr}
+#groups.numbered .fx .pn{display:block}
+.fx .seed{font:700 12px var(--cond);color:var(--marker);margin:0 4px}
+.prog .cruce{font:700 14px var(--cond);color:var(--marker);white-space:nowrap}
+.mbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 14px;background:var(--paper);border:1.5px solid var(--line);border-radius:10px;padding:12px 16px;margin:0 0 18px}
+.mbar p{margin:0;font-size:15px;color:var(--muted);max-width:62ch}
+.mbar p b{color:var(--ink)}
+.prog{margin-top:22px;background:var(--paper);border:1.5px solid var(--line);border-radius:10px;padding:16px;max-width:860px}
+.prog[hidden]{display:none}
+.prog h3{margin:0 0 4px;font:700 26px/1.15 var(--hand);color:var(--marker)}
+.prog .sub{margin:0 0 10px;color:var(--muted);font-size:14px}
+.prog .vs{color:var(--muted);font-weight:400;margin:0 6px}
+.prog .tn{max-width:none}
+.prog tr.done td{color:var(--muted)}
+.prog tr.next td{background:var(--amber-bg)}
+.prog tr.next td:first-child{box-shadow:inset 3px 0 0 var(--amber)}
 .fx span{font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fa{text-align:right}
 .dash{text-align:center;color:var(--muted)}
@@ -214,7 +231,7 @@ input:disabled{opacity:.45}
 .fld span{display:block;font-size:14px;font-weight:600;margin-bottom:4px}
 .fld input{width:100%;font:inherit;font-size:16px;padding:10px 12px;color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:6px}
 .lgerr{color:var(--danger);font-size:14px;min-height:1.2em;margin:0 0 10px}
-body.ro .tdel,body.ro #addTeam,body.ro #draw,body.ro #draw2,body.ro #loadGroups,body.ro #reset,body.ro .addp,body.ro .bulk,body.ro .step,body.ro .del,body.ro .pending .go{display:none}
+body.ro .tdel,body.ro #drawMatches,body.ro #normalOrder,body.ro #addTeam,body.ro #draw,body.ro #draw2,body.ro #loadGroups,body.ro #reset,body.ro .addp,body.ro .bulk,body.ro .step,body.ro .del,body.ro .pending .go{display:none}
 body.ro .gnum{min-width:0}
 body[data-view="gate"] main,body[data-view="gate"] .sesbar{display:none}
 .gate{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:24px 16px}
@@ -387,7 +404,16 @@ footer{margin-top:48px;font-size:13px;color:var(--muted)}
   <section id="grupos" aria-labelledby="t-gr">
     <h2 id="t-gr">Fase de grupos</h2>
     <p class="intro">Todos contra todos dentro del grupo, tres jornadas. Anote los goles y la tabla se ordena sola. <span class="key q"></span>clasifica directo <span class="key t"></span><span id="legendT">tercero, pelea un cupo.</span></p>
+    <div class="mbar"><p id="matchMsg" aria-live="polite"></p><div class="drawbtns"><button class="btn ghost" id="normalOrder" type="button" hidden>Volver al orden por jornada</button><button class="btn" id="drawMatches" type="button">Sortear orden de turnos</button></div></div>
     <div class="groups" id="groups"></div>
+    <div class="prog" id="prog" hidden>
+      <h3>Programa de partidos</h3>
+      <p class="sub" id="progSub"></p>
+      <div class="tw"><table class="std" id="progTable">
+        <thead><tr><th>Partido</th><th>Grupo</th><th>Jornada</th><th>Cruce</th><th class="tn">Equipos</th><th>Resultado</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+    </div>
   </section>
 
   <section id="terceros" aria-labelledby="t-te">
@@ -558,7 +584,17 @@ function sched(n){ // partidos de un grupo de n equipos: {x,y,j} (j = jornada)
   }
   return schedCache[n]=out;
 }
+// Formato fijo por posición (como en las hojas del torneo):
+// Jornada 1: 1 vs 2, 3 vs 4 | Jornada 2: 1 vs 3, 2 vs 4 | Jornada 3: 1 vs 4, 2 vs 3
 const gsched=L=>sched(S.groups[L].length);
+function allKeys(){const a=[];LETTERS.forEach(L=>gsched(L).forEach((m,k)=>a.push({key:L+k,L,k,j:m.j})));return a}
+function curOrder(){
+  const all=allKeys();
+  if(Array.isArray(S.order)&&S.order.length===all.length&&all.every(m=>S.order.includes(m.key)))return S.order;
+  return all.sort((a,b)=>a.j-b.j||a.L.localeCompare(b.L)||a.k-b.k).map(m=>m.key);
+}
+const matchNo=key=>S.drawn?curOrder().indexOf(key)+1:0;
+function clearMatchDraw(){const had=!!(S.perm||S.order);S.perm=null;S.order=null;S.matchAt=null;return had}
 function sizesFor(N){const b=Math.floor(N/3),e=N%3;return{A:b+(e>=1?1:0),B:b+(e>=2?1:0),C:b}}
 function defaultGroups(N){const z=sizesFor(N);let i=0;const G={};LETTERS.forEach(L=>{G[L]=[];for(let p=0;p<z[L];p++)G[L].push(i++)});return G}
 const KO_Q8=[
@@ -597,7 +633,17 @@ function normalize(o){
   const N=o.teams.length,all=o.groups?LETTERS.flatMap(L=>Array.isArray(o.groups[L])?o.groups[L]:[]):[];
   const okG=o.groups&&LETTERS.every(L=>Array.isArray(o.groups[L])&&o.groups[L].length>=3)&&all.length===N&&new Set(all).size===N&&all.every(t=>t>=0&&t<N);
   if(!okG){o.groups=defaultGroups(N);o.drawn=false;o.gm={};o.ko={}}
-  o.gm=o.gm||{};o.ko=o.ko||{};o.scorers=Array.isArray(o.scorers)?o.scorers:[];o.keepers=o.keepers||{};return o;
+  o.gm=o.gm||{};o.ko=o.ko||{};o.scorers=Array.isArray(o.scorers)?o.scorers:[];o.keepers=o.keepers||{};
+  if(o.perm){ // versión anterior: los partidos se habían revuelto; se pasan los marcadores al formato fijo
+    const gm={};
+    LETTERS.forEach(L=>{const n=o.groups[L].length,base=sched(n),p=Array.isArray(o.perm[L])&&o.perm[L].length===n?o.perm[L]:null;
+      base.forEach((m,k)=>{const r=o.gm[L+k];if(!r)return;
+        const x=p?p[m.x]:m.x,y=p?p[m.y]:m.y;
+        const k2=base.findIndex(b=>(b.x===x&&b.y===y)||(b.x===y&&b.y===x));if(k2<0)return;
+        gm[L+k2]=base[k2].x===x?[r[0],r[1]]:[r[1],r[0]];});});
+    o.gm=gm;delete o.perm;o.order=null;o.matchAt=null;
+  }
+  return o;
 }
 function load(){try{const r=localStorage.getItem(KEY);return r?normalize(JSON.parse(r)):null}catch(e){return null}}
 function saveLocal(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
@@ -665,7 +711,7 @@ const scoreInput=(attrs)=>`<input class="sc" type="number" min="0" max="99" inpu
 
 const isPh=(name,i)=>{const t=String(name??'').trim();return !t||/^equipo\s*\d+$/i.test(t)};
 function voidDraw(){
-  S.drawn=false;S.drawnAt=null;S.drawNames=null;S.drawVoid=true;S.groups=defaultGroups(S.teams.length);
+  S.drawn=false;S.drawnAt=null;S.drawNames=null;S.drawVoid=true;S.groups=defaultGroups(S.teams.length);clearMatchDraw();
   toast('Se escribió el nombre de un equipo que se sorteó sin nombre, así que el sorteo se anuló. Sortee cuando termine de anotar los equipos.');
 }
 function buildTeams(){
@@ -693,8 +739,8 @@ function buildGroups(){
     for(let j=0;j<nj;j++){
       fx+=`<div class="jor"><h4>Jornada ${j+1}</h4>`;
       const busy=new Set();
-      sc.forEach((m,k)=>{if(m.j!==j)return;busy.add(m.x);busy.add(m.y);
-        fx+=`<div class="fx" data-g="${L}" data-k="${k}"><span class="fa"></span>${scoreInput('data-s="0"')}<span class="dash" aria-hidden="true">–</span>${scoreInput('data-s="1"')}<span class="fb"></span></div>`;});
+      sc.map((m,k)=>[m,k]).sort((a,b)=>(matchNo(L+a[1])||0)-(matchNo(L+b[1])||0)).forEach(([m,k])=>{if(m.j!==j)return;busy.add(m.x);busy.add(m.y);
+        fx+=`<div class="fx" data-g="${L}" data-k="${k}"><span class="pn"></span><span class="fa"></span>${scoreInput('data-s="0"')}<span class="dash" aria-hidden="true">–</span>${scoreInput('data-s="1"')}<span class="fb"></span></div>`;});
       if(n%2){const r=[...Array(n).keys()].find(p=>!busy.has(p));fx+=`<p class="rest" data-g="${L}" data-r="${r}"></p>`}
       fx+='</div>';
     }
@@ -765,14 +811,18 @@ function refresh(){
     const nq=S.format==='s4'?1:2;
     art.querySelector('tbody').innerHTML=g.rows.map((r,i)=>`<tr class="${i<nq?'q':i===nq?'t':''}"><td>${i+1}</td><td class="tn">${esc(nm(r.t))}</td><td>${r.pj}</td><td>${r.g}</td><td>${r.e}</td><td>${r.p}</td><td>${r.gf}</td><td>${r.gc}</td><td>${r.dg>0?'+'+r.dg:r.dg}</td><td class="pts">${r.pts}</td></tr>`).join('');
   });
+  $('#groups').classList.toggle('numbered',!!(S.drawn&&S.order));
+  $$('.fx').forEach(f=>{const n=matchNo(f.dataset.g+f.dataset.k);f.querySelector('.pn').textContent=n?'P'+n:''});
+  renderProgram();
   $$('.rest').forEach(r=>r.textContent='Descansa: '+nm(S.groups[r.dataset.g][+r.dataset.r]));
   const N=S.teams.length,z=LETTERS.map(L=>S.groups[L].length);
   $('#teamCount').textContent=`${N} equipos: Grupo A de ${z[0]}, B de ${z[1]} y C de ${z[2]}. Mínimo ${MIN_T}, máximo ${MAX_T}.`;
   $('#addTeam').disabled=N>=MAX_T;
   $$('.fx').forEach(f=>{
     const ids=S.groups[f.dataset.g],{x,y}=gsched(f.dataset.g)[+f.dataset.k];
-    const A=nm(ids[x]),B=nm(ids[y]);
-    f.querySelector('.fa').textContent=A;f.querySelector('.fb').textContent=B;
+    const A=nm(ids[x]),B=nm(ids[y]),L0=f.dataset.g;
+    f.querySelector('.fa').innerHTML=esc(A)+'<small class="seed">'+L0+(x+1)+'</small>';
+    f.querySelector('.fb').innerHTML='<small class="seed">'+L0+(y+1)+'</small>'+esc(B);
     const ins=f.querySelectorAll('input');
     ins[0].setAttribute('aria-label','Goles de '+A+' contra '+B);
     ins[1].setAttribute('aria-label','Goles de '+B+' contra '+A);
@@ -1062,7 +1112,7 @@ async function runDraw(){
   }
   S.groups=G;S.drawn=true;S.drawNames=S.teams.slice();S.drawVoid=false;S.drawManual=false;
   S.drawnAt=new Date().toLocaleString('es-HN',{dateStyle:'short',timeStyle:'short'});
-  save();drawing=false;refresh();btns.forEach(b=>b.disabled=false);
+  clearMatchDraw();save();drawing=false;rebuildAll();btns.forEach(b=>b.disabled=false);
   document.body.classList.remove('shuffled');void document.body.offsetWidth;document.body.classList.add('shuffled');
   setTimeout(()=>document.body.classList.remove('shuffled'),700);
 }
@@ -1075,6 +1125,46 @@ async function onDraw(){
   runDraw();
 }
 $('#draw2').addEventListener('click',onDraw);
+
+/* ---------- sorteo de partidos de la fase de grupos ---------- */
+function renderProgram(){
+  const msg=$('#matchMsg'),btn=$('#drawMatches'),sorted=!!(S.drawn&&Array.isArray(S.order)&&curOrder()===S.order);
+  btn.disabled=!S.drawn||drawing;$('#normalOrder').hidden=!sorted;
+  msg.innerHTML=!S.drawn?'Después del sorteo de grupos se arman los partidos: jornada 1, 1 vs 2 y 3 vs 4; jornada 2, 1 vs 3 y 2 vs 4; jornada 3, 1 vs 4 y 2 vs 3.'
+    :sorted?'Orden de turnos sorteado'+(S.matchAt?' el <b>'+esc(S.matchAt)+'</b>':'')+'. Los cruces de cada jornada no cambian.'
+    :'Cruces de cada grupo: jornada 1, <b>1 vs 2</b> y <b>3 vs 4</b>; jornada 2, <b>1 vs 3</b> y <b>2 vs 4</b>; jornada 3, <b>1 vs 4</b> y <b>2 vs 3</b>.';
+  btn.textContent=sorted?'Sortear turnos de nuevo':'Sortear orden de turnos';
+  const box=$('#prog');box.hidden=!S.drawn;if(box.hidden)return;
+  $('#progSub').textContent=sorted?'Orden de juego sorteado dentro de cada jornada. El primer partido sin resultado está resaltado.':'Orden de juego por jornada: Grupo A, luego B y luego C. El primer partido sin resultado está resaltado.';
+  let next=null;
+  $('#progTable tbody').innerHTML=curOrder().map((key,i)=>{
+    const L=key[0],k=+key.slice(1),m=gsched(L)[k];if(!m)return'';
+    const r=S.gm[key],done=r&&r[0]!=null&&r[1]!=null;if(!done&&next==null)next=i;
+    const A=nm(S.groups[L][m.x]),B=nm(S.groups[L][m.y]);
+    return `<tr class="${done?'done':i===next?'next':''}"><td class="pts">${i+1}</td><td>${L}</td><td>${m.j+1}</td><td class="cruce">${L}${m.x+1} vs ${L}${m.y+1}</td><td class="tn">${esc(A)}<span class="vs">vs</span>${esc(B)}</td><td>${done?r[0]+' – '+r[1]:i===next?'Sigue':''}</td></tr>`;
+  }).join('');
+}
+function makeOrder(){
+  const all=[];LETTERS.forEach(L=>gsched(L).forEach((m,k)=>all.push({key:L+k,j:m.j,t:[S.groups[L][m.x],S.groups[L][m.y]]})));
+  const maxJ=Math.max(...all.map(m=>m.j));
+  const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+  let best=null,bestScore=Infinity;
+  for(let tries=0;tries<300&&bestScore>0;tries++){
+    const seq=[];for(let j=0;j<=maxJ;j++)seq.push(...shuffle(all.filter(m=>m.j===j)));
+    let score=0;for(let i=1;i<seq.length;i++)if(seq[i].t.some(t=>seq[i-1].t.includes(t)))score++;
+    if(score<bestScore){bestScore=score;best=seq}
+  }
+  return best.map(m=>m.key);
+}
+$('#drawMatches').addEventListener('click',async()=>{
+  if(drawing||!S.drawn)return;
+  S.order=makeOrder();
+  S.matchAt=new Date().toLocaleString('es-HN',{dateStyle:'short',timeStyle:'short'});
+  save();rebuildAll();
+  $('#prog').scrollIntoView({behavior:reduceMotion()?'auto':'smooth',block:'start'});
+  toast('Turnos sorteados. Los cruces de cada jornada siguen igual.');
+});
+$('#normalOrder').addEventListener('click',()=>{S.order=null;S.matchAt=null;save();rebuildAll();toast('Se volvió al orden por jornada y grupo.')});
 
 /* ---------- cargar grupos sorteados fuera de la página ---------- */
 function parseGroups(txt){
@@ -1141,7 +1231,7 @@ $('#lgApply').addEventListener('click',async()=>{
   S.scorers=S.scorers.filter(p=>map[p.team]!=null).map(p=>Object.assign(p,{team:map[p.team]}));
   S.keepers=K;S.teams=names.slice();
   let i=0;S.groups={};LETTERS.forEach(L=>{S.groups[L]=G[L].map(()=>i++)});
-  S.drawn=true;S.drawManual=true;S.drawVoid=false;S.drawNames=S.teams.slice();
+  S.drawn=true;S.drawManual=true;S.drawVoid=false;S.drawNames=S.teams.slice();clearMatchDraw();
   S.drawnAt=new Date().toLocaleString('es-HN',{dateStyle:'short',timeStyle:'short'});
   rosterTeam=null;save();rebuildAll();
   toast('Grupos cargados: '+LETTERS.map(L=>'Grupo '+L+' con '+G[L].length).join(', ')+'.');
@@ -1156,11 +1246,12 @@ $('#reset').addEventListener('click',async()=>{
 function renderPending(C){
   const box=$('#pending');const miss=[];
   LETTERS.forEach(L=>gsched(L).forEach(({x,y,j},k)=>{const r=S.gm[L+k];
-    if(!r||r[0]==null||r[1]==null)miss.push({L,k,j,a:S.groups[L][x],b:S.groups[L][y]});}));
+    if(!r||r[0]==null||r[1]==null)miss.push({L,k,j,n:matchNo(L+k),a:S.groups[L][x],b:S.groups[L][y]});}));
+  if(S.drawn)miss.sort((a,b)=>a.n-b.n);
   box.classList.toggle('ok',!miss.length);
   if(miss.length){
     box.innerHTML=`<p>Las llaves se completan cuando terminen los tres grupos. ${miss.length>1?'Faltan':'Falta'} ${miss.length} resultado${miss.length>1?'s':''}:</p><ul>`+
-      miss.map(m=>`<li><span><b>Grupo ${m.L}</b>, jornada ${m.j+1}: ${esc(nm(m.a))} contra ${esc(nm(m.b))}</span><button class="go" type="button" data-go="${m.L}|${m.k}">Anotar resultado</button></li>`).join('')+'</ul>';
+      miss.map(m=>`<li><span>${m.n?'<b>Partido '+m.n+'</b>, ':''}<b>Grupo ${m.L}</b>, jornada ${m.j+1}: ${esc(nm(m.a))} contra ${esc(nm(m.b))}</span><button class="go" type="button" data-go="${m.L}|${m.k}">Anotar resultado</button></li>`).join('')+'</ul>';
     return;
   }
   const next=KO.find(k=>C.M[k.id].ready&&!C.M[k.id].side);
@@ -1429,7 +1520,7 @@ $('#shareDl').addEventListener('click',()=>{
 window.addEventListener('beforeunload',e=>{if(ONLINE&&(dirty||saving)){e.preventDefault();e.returnValue=''}});
 
 /* ---------- agregar y quitar equipos ---------- */
-function resetStructure(){clearResults();S.drawManual=false;S.drawn=false;S.drawnAt=null;S.drawNames=null;S.drawVoid=false;S.groups=defaultGroups(S.teams.length)}
+function resetStructure(){clearResults();clearMatchDraw();S.drawManual=false;S.drawn=false;S.drawnAt=null;S.drawNames=null;S.drawVoid=false;S.groups=defaultGroups(S.teams.length)}
 const needsReset=()=>S.drawn||hasResults();
 async function addTeam(){
   if(drawing)return;const N=S.teams.length;
