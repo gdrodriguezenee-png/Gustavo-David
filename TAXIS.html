@@ -104,6 +104,13 @@
   table.tgrid .rowtot,table.tgrid .coltot{font-weight:800;color:var(--green);font-variant-numeric:tabular-nums}
   table.tgrid tfoot td{border-top:2px solid var(--line);border-bottom:none;background:var(--panel2)}
   .dom small,.sab small{color:var(--accent)!important}
+  table.tgrid td.cero-cell{cursor:pointer;background:rgba(239,68,68,.14);color:#ffb4ab;font-size:14px;line-height:1.1}
+  table.tgrid td.cero-cell small{display:block;color:var(--muted);font-weight:400;font-size:9px;max-width:66px;margin:2px auto 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .nota-card{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px}
+  .nota-txt{font-size:14px;white-space:pre-wrap;word-break:break-word}
+  .nota-bottom{display:flex;align-items:center;justify-content:space-between;margin-top:8px}
+  .nota-fecha{font-size:11px;color:var(--muted)}
+  .mq-wrap{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
 
   .cat-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:13px}
   .cat-row .nm{width:120px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -169,6 +176,7 @@
     <button id="tab-tar" class="active" onclick="showTab('tar')">🛵 Tarifas</button>
     <button id="tab-fin" onclick="showTab('fin')">💵 Gastos</button>
     <button id="tab-mnt" onclick="showTab('mnt')">🔧 Mantenimiento</button>
+    <button id="tab-nota" onclick="showTab('nota')">📝 Notas</button>
   </div>
 
   <!-- ============ TAB TARIFAS (INGRESOS SEMANALES) ============ -->
@@ -247,7 +255,9 @@
           <div style="display:flex;gap:8px;margin-top:4px">
             <button type="button" class="btn sm ghost" onclick="addPartRow()">＋ Agregar parte</button>
           </div>
-          <p class="mini" style="margin-top:8px">💡 El <b>monto total</b> se calcula solo con la suma de las partes.</p>
+          <label style="margin-top:12px">Mano de obra (L)</label>
+          <input type="number" id="f-labor" placeholder="0.00" step="0.01" min="0" oninput="sumParts()">
+          <p class="mini" style="margin-top:8px">💡 El <b>monto total</b> = suma de las partes <b>+ mano de obra</b>.</p>
         </div>
 
         <label style="margin-top:12px">Foto de la factura / ticket</label>
@@ -321,6 +331,17 @@
     <p class="mini center">Registra un mantenimiento desde la pestaña <b>Gastos</b> eligiendo la categoría Mantenimiento, Reparación o Llantas.</p>
   </section>
 
+  <!-- ============ TAB NOTAS ============ -->
+  <section id="view-nota" class="hidden">
+    <div class="card">
+      <h2>📝 Bloc de notas <span class="tag">apuntes rápidos</span></h2>
+      <textarea id="nota-input" placeholder="Escribe una nota rápida... (ej. cobrar a Juan, revisar llanta del 3709)" style="min-height:70px" onkeydown="if(event.key==='Enter'&&(event.ctrlKey||event.metaKey))addNota()"></textarea>
+      <div style="margin-top:10px"><button class="btn primary" style="width:100%;justify-content:center;padding:11px" onclick="addNota()">＋ Agregar nota</button></div>
+      <div id="notas-list" style="margin-top:16px"></div>
+      <p class="mini">Las notas se sincronizan en la nube con los demás dispositivos.</p>
+    </div>
+  </section>
+
   <footer>🚕 Finanzas Taxi · app local, sin conexión · tus datos y fotos nunca salen de tu equipo</footer>
 </div>
 
@@ -373,6 +394,28 @@
     <div style="display:flex;gap:8px;margin-top:14px">
       <button class="btn primary" style="flex:1;justify-content:center;padding:11px" onclick="doLogin()">Entrar</button>
       <button class="btn ghost" onclick="document.getElementById('login-overlay').classList.remove('show')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal motivo del día en cero -->
+<div class="overlay" id="motivo-overlay">
+  <div class="card" style="max-width:400px;width:100%" onclick="event.stopPropagation()">
+    <h2>🚫 Día en cero</h2>
+    <p class="mini" style="margin-top:0">Anota por qué este día quedó en cero — <b id="motivo-info"></b></p>
+    <div class="mq-wrap">
+      <button type="button" class="btn ghost sm" onclick="quickMotivo('Descompuesto')">Descompuesto</button>
+      <button type="button" class="btn ghost sm" onclick="quickMotivo('En mantenimiento')">Mantenimiento</button>
+      <button type="button" class="btn ghost sm" onclick="quickMotivo('Día libre')">Día libre</button>
+      <button type="button" class="btn ghost sm" onclick="quickMotivo('Chofer enfermo')">Chofer enfermo</button>
+      <button type="button" class="btn ghost sm" onclick="quickMotivo('Sin chofer')">Sin chofer</button>
+      <button type="button" class="btn ghost sm" onclick="quickMotivo('No trabajó')">No trabajó</button>
+    </div>
+    <textarea id="motivo-text" placeholder="Escribe el motivo..." style="min-height:60px"></textarea>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn primary" style="flex:1;justify-content:center" onclick="saveMotivo()">Guardar motivo</button>
+      <button class="btn ghost" onclick="quitarDia()">Quitar día</button>
+      <button class="btn ghost" onclick="cancelMotivo()">Cancelar</button>
     </div>
   </div>
 </div>
@@ -453,13 +496,59 @@ function delMoto(n){ if(!confirm('¿Quitar "'+n+'" de la lista? (No borra los in
 function weekDates(){ return [...Array(7)].map((_,i)=>isoLocal(addDays(state.week,i))); }
 function findTarifa(veh,date){ return state.txs.find(t=>t.type==='ingreso'&&t.cat==='Tarifas'&&t.veh===veh&&t.date===date); }
 function tarifaVal(veh,date){ const t=findTarifa(veh,date); return t?t.amount:0; }
-function setTarifaRaw(veh,date,val){
+function setTarifaRaw(veh,date,val,motivo){
   val=Math.round((parseFloat(val)||0)*100)/100;
+  motivo=(motivo||'').trim();
   const ex=findTarifa(veh,date);
-  if(val>0){ if(ex) ex.amount=val; else state.txs.push({id:uid(),type:'ingreso',amount:val,date,cat:'Tarifas',veh,drv:'',note:'',parts:[],odo:null,shop:'',hasPhoto:false}); }
+  if(val>0){ if(ex){ ex.amount=val; ex.motivo=''; } else state.txs.push({id:uid(),type:'ingreso',amount:val,date,cat:'Tarifas',veh,drv:'',note:'',parts:[],odo:null,shop:'',hasPhoto:false,motivo:''}); }
+  else if(motivo){ if(ex){ ex.amount=0; ex.motivo=motivo; } else state.txs.push({id:uid(),type:'ingreso',amount:0,date,cat:'Tarifas',veh,drv:'',note:'',parts:[],odo:null,shop:'',hasPhoto:false,motivo}); }
   else if(ex){ state.txs=state.txs.filter(t=>t!==ex); }
 }
 function setTarifa(veh,date,val){ setTarifaRaw(veh,date,val); save(); renderTarifas(); }
+function onTarifaInput(veh,date,val){
+  if((parseFloat(val)||0)>0) setTarifa(veh,date,val);
+  else openMotivo(veh,date);
+}
+/* --- Motivo del día en cero --- */
+let motivoVeh=null, motivoDate=null;
+function openMotivo(veh,date){
+  motivoVeh=veh; motivoDate=date;
+  const ex=findTarifa(veh,date);
+  document.getElementById('motivo-text').value = (ex && ex.amount===0 && ex.motivo)?ex.motivo:'';
+  document.getElementById('motivo-info').textContent = esc(veh)+' · '+fmtDate(date);
+  document.getElementById('motivo-overlay').classList.add('show');
+}
+function quickMotivo(t){ document.getElementById('motivo-text').value=t; }
+function saveMotivo(){
+  setTarifaRaw(motivoVeh, motivoDate, 0, document.getElementById('motivo-text').value);
+  save(); document.getElementById('motivo-overlay').classList.remove('show'); renderTarifas();
+}
+function quitarDia(){
+  setTarifaRaw(motivoVeh, motivoDate, 0, '');
+  save(); document.getElementById('motivo-overlay').classList.remove('show'); renderTarifas();
+}
+function cancelMotivo(){ document.getElementById('motivo-overlay').classList.remove('show'); renderTarifas(); }
+
+/* ================= Bloc de notas ================= */
+const NOTAS_KEY='taxi_notas';
+function loadNotas(){ try{ return JSON.parse(localStorage.getItem(NOTAS_KEY))||[] }catch(e){ return [] } }
+function saveNotas(a){ localStorage.setItem(NOTAS_KEY, JSON.stringify(a)); if(baseDoc){ baseDoc.set({notas:a},{merge:true}).catch(()=>{}); } }
+function fmtDT(iso){ try{ return new Date(iso).toLocaleString('es-HN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}); }catch(e){ return ''; } }
+function addNota(){
+  const i=document.getElementById('nota-input'); const t=i.value.trim(); if(!t) return;
+  const a=loadNotas(); a.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,5), text:t, date:new Date().toISOString()});
+  saveNotas(a); i.value=''; renderNotas();
+}
+function delNota(id){ if(!confirm('¿Eliminar esta nota?')) return; saveNotas(loadNotas().filter(n=>n.id!==id)); renderNotas(); }
+function renderNotas(){
+  const el=document.getElementById('notas-list'); if(!el) return;
+  const list=loadNotas().slice().sort((a,b)=>(b.id||'').localeCompare(a.id||''));
+  el.innerHTML = list.length ? list.map(n=>`
+    <div class="nota-card">
+      <div class="nota-txt">${esc(n.text)}</div>
+      <div class="nota-bottom"><span class="nota-fecha">${fmtDT(n.date)}</span><button class="del" title="Eliminar" onclick="delNota('${n.id}')">✕</button></div>
+    </div>`).join('') : '<div class="empty">Sin notas. Escribe una arriba ☝️</div>';
+}
 function fillWeek(){
   const v=parseFloat(document.getElementById('def-tarifa').value)||0;
   if(v<=0){ alert('Pon una tarifa base mayor a 0.'); return; }
@@ -492,9 +581,16 @@ function renderTarifas(){
     motos.forEach(mo=>{
       let rowTot=0;
       html+=`<tr><td class="moto">${esc(mo)}<button class="rm" title="Quitar de la lista" onclick="delMoto('${esc(mo).replace(/'/g,"\\'")}')">✕</button></td>`;
+      const mE=esc(mo).replace(/'/g,"\\'");
       dates.forEach((dt,i)=>{
-        const v=tarifaVal(mo,dt); rowTot+=v; colTot[i]+=v;
-        html+=`<td><input type="number" min="0" step="1" value="${v?v:''}" placeholder="0" onchange="setTarifa('${esc(mo).replace(/'/g,"\\'")}','${dt}',this.value)"></td>`;
+        const ex=findTarifa(mo,dt);
+        const v=(ex&&ex.amount>0)?ex.amount:0; rowTot+=v; colTot[i]+=v;
+        const hasMotivo = ex && ex.amount===0 && ex.motivo;
+        if(hasMotivo){
+          html+=`<td class="cero-cell" title="${esc(ex.motivo)}" onclick="openMotivo('${mE}','${dt}')">🚫<small>${esc(ex.motivo)}</small></td>`;
+        } else {
+          html+=`<td><input type="number" min="0" step="1" value="${v?v:''}" placeholder="0" onchange="onTarifaInput('${mE}','${dt}',this.value)"></td>`;
+        }
       });
       grand+=rowTot;
       html+=`<td class="rowtot">${money(rowTot)}</td></tr>`;
@@ -601,10 +697,15 @@ function addPartRow(name='',cost=''){
   document.getElementById('parts').appendChild(div);
 }
 function readParts(){ return [...document.querySelectorAll('#parts .part-row')].map(r=>{ const i=r.querySelectorAll('input'); return { name:i[0].value.trim(), cost:parseFloat(i[1].value)||0 }; }).filter(p=>p.name); }
-function sumParts(){ const s=[...document.querySelectorAll('#parts .part-row')].reduce((a,r)=>a+(parseFloat(r.querySelectorAll('input')[1].value)||0),0); const f=document.getElementById('f-amount'); if(s>0) f.value=s.toFixed(2); else if(document.querySelectorAll('#parts .part-row').length) f.value=''; }
+function sumParts(){
+  const parts=[...document.querySelectorAll('#parts .part-row')].reduce((a,r)=>a+(parseFloat(r.querySelectorAll('input')[1].value)||0),0);
+  const labEl=document.getElementById('f-labor'); const labor=labEl?(parseFloat(labEl.value)||0):0;
+  const s=parts+labor; const f=document.getElementById('f-amount');
+  if(s>0) f.value=s.toFixed(2); else if(document.querySelectorAll('#parts .part-row').length) f.value='';
+}
 let editingId=null;
 function clearForm(){
-  ['f-amount','f-note','f-shop','f-veh','f-drv'].forEach(id=>document.getElementById(id).value='');
+  ['f-amount','f-note','f-shop','f-veh','f-drv','f-labor'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('f-date').value=todayISO();
   document.getElementById('parts').innerHTML='';
   clearPhoto(); onCatChange();
@@ -626,6 +727,7 @@ function editGasto(id){
   onCatChange();
   if(!document.getElementById('maint-box').classList.contains('hidden')){
     document.getElementById('f-shop').value=t.shop||'';
+    document.getElementById('f-labor').value=t.labor||'';
     document.getElementById('parts').innerHTML='';
     (t.parts||[]).forEach(p=>addPartRow(p.name,p.cost||''));
     if(!(t.parts||[]).length) addPartRow();
@@ -644,7 +746,7 @@ async function addGasto(){
     date:document.getElementById('f-date').value||todayISO(), cat,
     veh:document.getElementById('f-veh').value.trim(), drv:document.getElementById('f-drv').value.trim(),
     note:document.getElementById('f-note').value.trim(),
-    parts:isM?readParts():[], odo:null,
+    parts:isM?readParts():[], odo:null, labor:isM?(parseFloat(document.getElementById('f-labor').value)||0):0,
     shop:isM?document.getElementById('f-shop').value.trim():'' };
   if(editingId){
     const t=state.txs.find(x=>x.id===editingId);
@@ -706,7 +808,7 @@ function render(){
     <div class="cat-row"><div class="nm">${esc(c)}</div><div class="bar"><i style="width:${max?(v/max*100):0}%"></i></div><div class="v">${money(v)}</div></div>`).join('')
     : '<div class="empty">Aún no hay gastos en este periodo.</div>';
 
-  let rows=pTx.slice();
+  let rows=pTx.filter(t=>!(t.type==='ingreso'&&t.cat==='Tarifas'&&!(t.amount>0)));
   if(fType) rows=rows.filter(t=>t.type===fType);
   if(fVeh) rows=rows.filter(t=>t.veh===fVeh);
   if(q) rows=rows.filter(t=>((t.note||'')+' '+(t.cat||'')+' '+(t.veh||'')+' '+(t.drv||'')).toLowerCase().includes(q));
@@ -795,15 +897,16 @@ function renderMaint(){
         const alarm = prev ? `<div class="part-alarm">⚠️ Ya se había cambiado el <b>${fmtDate(prev)}</b> · duró <b>${humanDur(daysBetween(prev,t.date))}</b></div>` : '';
         return `<li><div style="flex:1;min-width:0"><div>🔩 ${esc(p.name)} <span class="part-ago">· hace ${humanAgo(t.date)}</span></div>${alarm}</div><span class="pc">${p.cost?money(p.cost):'—'}</span></li>`;
       }).join('')}</ul>`:'<div class="muted" style="font-size:12.5px">Sin detalle de refacciones.</div>'}
+      ${t.labor>0?`<div style="display:flex;justify-content:space-between;font-size:13px;margin-top:6px"><span>🛠️ Mano de obra</span><span class="pc">${money(t.labor)}</span></div>`:''}
       ${t.note?`<div class="muted" style="font-size:12px;margin-top:8px">📝 ${esc(t.note)}</div>`:''}
     </div>`).join('') : '<div class="empty">Aún no hay mantenimientos registrados.</div>';
 }
 
-function renderAll(){ renderTarifas(); render(); renderMaint(); renderOilAlert(); }
+function renderAll(){ renderTarifas(); render(); renderMaint(); renderOilAlert(); renderNotas(); }
 
 /* ================= Tabs ================= */
 function showTab(t){
-  ['tar','fin','mnt'].forEach(x=>{
+  ['tar','fin','mnt','nota'].forEach(x=>{
     document.getElementById('view-'+x).classList.toggle('hidden', x!==t);
     document.getElementById('tab-'+x).classList.toggle('active', x===t);
   });
@@ -819,7 +922,7 @@ function exportCSV(){
   const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
   download('finanzas_taxi_'+todayISO()+'.csv','﻿'+csv,'text/csv');
 }
-async function exportJSON(){ const photos=await dbAll(); download('respaldo_finanzas_taxi_'+todayISO()+'.json', JSON.stringify({v:3,txs:state.txs,motos:loadMotos(),photos},null,2),'application/json'); }
+async function exportJSON(){ const photos=await dbAll(); download('respaldo_finanzas_taxi_'+todayISO()+'.json', JSON.stringify({v:3,txs:state.txs,motos:loadMotos(),notas:loadNotas(),photos},null,2),'application/json'); }
 function importJSON(e){
   const f=e.target.files[0]; if(!f) return;
   const r=new FileReader();
@@ -831,6 +934,7 @@ function importJSON(e){
     if(confirm('¿Reemplazar los datos actuales por los del respaldo ('+txs.length+' movimientos)?')){
       state.txs=txs; save();
       if(!Array.isArray(data)&&data.motos) saveMotos(data.motos);
+      if(!Array.isArray(data)&&data.notas) saveNotas(data.notas);
       for(const k in photoCache) delete photoCache[k];
       for(const id in photos){ await dbSet(id,photos[id]); photoCache[id]=photos[id]; }
       renderAll();
@@ -941,9 +1045,11 @@ function listenNube(){
     renderAll();
   }, err=>setNubeStatus('Error nube: '+err.message, false));
   unsubBase=baseDoc.onSnapshot(doc=>{
-    const d=doc.data();
-    if(d && Array.isArray(d.motos)){ localStorage.setItem(MOTOS_KEY, JSON.stringify(d.motos)); renderTarifas(); }
+    const d=doc.data()||{};
+    if(Array.isArray(d.motos)){ localStorage.setItem(MOTOS_KEY, JSON.stringify(d.motos)); renderTarifas(); }
     else { const lm=loadMotos(); if(lm.length) baseDoc.set({motos:lm},{merge:true}).catch(()=>{}); }
+    if(Array.isArray(d.notas)){ localStorage.setItem(NOTAS_KEY, JSON.stringify(d.notas)); renderNotas(); }
+    else { const ln=loadNotas(); if(ln.length) baseDoc.set({notas:ln},{merge:true}).catch(()=>{}); }
   });
 }
 function syncPush(){
