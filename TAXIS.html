@@ -646,13 +646,14 @@ async function readInvoiceAI(){
   const m=pendingPhoto.match(/^data:(image\/\w+);base64,(.+)$/);
   if(!m){ st.textContent='Imagen no válida.'; return; }
   const prompt=`Eres un asistente que extrae datos de facturas o tickets de GASTOS de una empresa de taxis en Honduras (moneda Lempira, L). Analiza la imagen y devuelve SOLO un objeto JSON válido, sin markdown ni explicación, con esta forma exacta:
-{"fecha":"YYYY-MM-DD","monto":0,"categoria":"","taller":"","partes":[{"name":"","cost":0}],"nota":""}
+{"fecha":"YYYY-MM-DD","monto":0,"categoria":"","taller":"","partes":[{"name":"","cost":0}],"mano_obra":0,"nota":""}
 Reglas:
 - "categoria" debe ser EXACTAMENTE una de: Combustible, Cambio de aceite, Mantenimiento, Reparación, Llantas, Lavado, Seguro, Impuestos / Permisos, Pago mano de obra, Comisión app, Multas, Otros gastos.
 - "monto" es el total a pagar, número sin símbolo.
-- "partes": refacciones o servicios detallados con su costo; [] si no hay detalle.
+- "partes": SOLO refacciones o repuestos físicos con su costo; [] si no hay detalle. NO incluyas la mano de obra como una parte.
+- "mano_obra": el costo del trabajo o la labor del mecánico (mano de obra, servicio, instalación), número sin símbolo; 0 si no aparece o no aplica.
 - "taller": nombre del comercio; "nota": número de factura o breve descripción.
-- Si un dato no aparece, usa null o "".`;
+- Si un dato no aparece, usa null, 0 o "".`;
   try{
     const res=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
@@ -676,6 +677,7 @@ function fillFromAI(d){
   if(note) document.getElementById('f-note').value=note;
   if(!document.getElementById('maint-box').classList.contains('hidden')){
     if(d.taller) document.getElementById('f-shop').value=d.taller;
+    if(d.mano_obra) document.getElementById('f-labor').value=Number(d.mano_obra).toFixed(2);
     document.getElementById('parts').innerHTML='';
     (d.partes||[]).forEach(p=>addPartRow(p.name, p.cost||''));
     if(!(d.partes||[]).length) addPartRow();
