@@ -76,6 +76,8 @@ h2{font:700 32px/1.15 var(--hand);margin:52px 0 6px;color:var(--ink)}
 .lockbar[hidden]{display:none}
 .lockbar p{margin:0;font-size:14.5px}
 .lockbar.off{background:var(--amber-bg);border-left-color:var(--amber)}
+body.fixed #draw2,body.fixed #loadGroups,body.fixed #drawMatches,body.fixed #normalOrder,body.fixed #addTeam,body.fixed .tdel,body.fixed #lockBtn{display:none}
+body.fixed #reset{opacity:1}
 body.locked #draw2,body.locked #loadGroups,body.locked #drawMatches,body.locked #normalOrder,body.locked #addTeam,body.locked .tdel{display:none}
 body.locked #reset{opacity:.45}
 body.ro .lockbar .btn{display:none}
@@ -183,6 +185,29 @@ input:disabled{opacity:.45}
 #groups.numbered .fx{grid-template-columns:34px 1fr 42px 10px 42px 1fr}
 #groups.numbered .fx .pn{display:block}
 .fx .seed{font:700 12px var(--cond);color:var(--marker);margin:0 4px}
+.fx .when{grid-column:1/-1;font-size:12.5px;color:var(--muted);margin:-2px 0 4px;text-align:center}
+.fx .when:empty{display:none}
+.calbox{margin-top:22px;background:var(--paper);border:1.5px solid var(--line);border-radius:10px;padding:16px;max-width:900px}
+.calbox[hidden]{display:none}
+.calbox h3{margin:0 0 4px;font:700 26px/1.15 var(--hand);color:var(--marker)}
+.calbox .sub{margin:0 0 6px;color:var(--muted);font-size:14px}
+.calday{margin-top:16px}
+.calday h4{margin:0 0 6px;font:600 16px var(--sans);display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline}
+.calday h4 small{font:500 13px var(--sans);color:var(--muted)}
+.calday h4 .chip2{font:700 12px var(--cond);color:var(--amber);border:1.5px solid var(--amber);border-radius:999px;padding:0 8px}
+.calrow{display:grid;grid-template-columns:150px 1fr auto auto;gap:6px 12px;align-items:center;padding:8px 10px;border-bottom:1px solid var(--line);border-radius:6px}
+.calrow .hr{font:600 15px var(--cond);font-variant-numeric:tabular-nums;white-space:nowrap}
+.calrow .what b{font-weight:600}
+.calrow .tag2{display:block;font:700 12px var(--cond);color:var(--marker)}
+.calrow .vs{color:var(--muted);margin:0 6px}
+.calrow .res{font:700 16px var(--cond);white-space:nowrap}
+.calrow.ev .what{color:var(--muted);font-style:italic}
+.calrow.done .what{color:var(--muted)}
+.calrow.next{background:var(--amber-bg)}
+.calrow .ph{color:var(--muted);font-style:italic}
+.caledit{font:600 12.5px var(--sans);padding:4px 9px;border-radius:6px;border:1.5px solid var(--line);background:var(--paper);color:var(--ink);cursor:pointer}
+body.ro .caledit,body.ro #applyOfficial{display:none}
+@media (max-width:620px){.calrow{grid-template-columns:1fr auto}.calrow .hr{grid-column:1/-1}}
 .prog .cruce{font:700 14px var(--cond);color:var(--marker);white-space:nowrap}
 .mbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 14px;background:var(--paper);border:1.5px solid var(--line);border-radius:10px;padding:12px 16px;margin:0 0 18px}
 .mbar p{margin:0;font-size:15px;color:var(--muted);max-width:62ch}
@@ -396,7 +421,7 @@ footer{margin-top:48px;font-size:13px;color:var(--muted)}
 
   <section id="equipos" aria-labelledby="t-eq">
     <h2 id="t-eq">Equipos</h2>
-    <p class="intro">Escriba el nombre de cada equipo y, si quiere, el de su portero. Puede agregar o quitar equipos. Luego haga el sorteo: el sistema saca los equipos uno por uno al azar y cada uno queda en el grupo y la posición donde sale.</p>
+    <p class="intro" id="teamsIntro">Escriba el nombre de cada equipo y, si quiere, el de su portero. Puede agregar o quitar equipos. Luego haga el sorteo: el sistema saca los equipos uno por uno al azar y cada uno queda en el grupo y la posición donde sale.</p>
     <div class="teams" id="teams"></div>
     <div class="teamact"><button class="btn ghost" id="addTeam" type="button">+ Agregar equipo</button><span id="teamCount"></span></div>
     <div class="drawbox">
@@ -411,9 +436,14 @@ footer{margin-top:48px;font-size:13px;color:var(--muted)}
 
   <section id="grupos" aria-labelledby="t-gr">
     <h2 id="t-gr">Fase de grupos</h2>
-    <p class="intro">Todos contra todos dentro del grupo, tres jornadas. Anote los goles y la tabla se ordena sola. <span class="key q"></span>clasifica directo <span class="key t"></span><span id="legendT">tercero, pelea un cupo.</span></p>
-    <div class="mbar"><p id="matchMsg" aria-live="polite"></p><div class="drawbtns"><button class="btn ghost" id="normalOrder" type="button" hidden>Volver al orden por jornada</button><button class="btn" id="drawMatches" type="button">Sortear orden de turnos</button></div></div>
+    <p class="intro">Todos contra todos dentro del grupo. Anote los goles y la tabla se ordena sola. <span class="key q"></span>clasifica directo <span class="key t"></span><span id="legendT">tercero, pelea un cupo.</span></p>
+    <div class="mbar"><p id="matchMsg" aria-live="polite"></p><div class="drawbtns"><button class="btn ghost" id="normalOrder" type="button" hidden>Volver al orden por jornada</button><button class="btn" id="drawMatches" type="button">Sortear orden de turnos</button><button class="btn" id="applyOfficial" type="button" hidden>Aplicar formato y calendario del reglamento</button></div></div>
     <div class="groups" id="groups"></div>
+    <div class="calbox" id="calBox" hidden>
+      <h3>Calendario de partidos</h3>
+      <p class="sub">Todos los partidos se juegan los viernes. El siguiente partido por jugar está resaltado.</p>
+      <div id="calList"></div>
+    </div>
     <div class="prog" id="prog" hidden>
       <h3>Programa de partidos</h3>
       <p class="sub" id="progSub"></p>
@@ -509,9 +539,12 @@ footer{margin-top:48px;font-size:13px;color:var(--muted)}
     <div class="rules">
       <div><h3>Puntos</h3><p>Victoria <b>3</b>, empate <b>1</b>, derrota <b>0</b>. Cada equipo juega una vez contra cada rival de su grupo.</p></div>
       <div><h3>Orden de la tabla</h3><p>Puntos, luego diferencia de goles y luego goles a favor. Si siguen empatados, se define por sorteo.</p></div>
-      <div><h3>Quiénes clasifican</h3><p><b>A1, A2, B1, B2, C1, C2</b> y los <b>dos mejores terceros</b>, comparados con los mismos criterios. Si los grupos no tienen la misma cantidad de equipos, se compara el promedio por partido.</p></div>
-      <div><h3>Cuartos de final</h3><p>A1 contra el 2.º mejor tercero, B1 contra el mejor tercero, C1 contra B2 y A2 contra C2.</p></div>
-      <div><h3>Semifinales y final</h3><p>Ganador de A1/3.º contra ganador de A2/C2. Ganador de B1/3.º contra ganador de C1/B2. Los dos ganadores juegan la final.</p></div>
+      <div><h3>Fase de grupos</h3><p>Grupos <b>A y B de 4 equipos</b> y <b>Grupo C de 3</b>. Cada equipo juega una vez contra todos los de su grupo.</p></div>
+      <div><h3>Quiénes clasifican</h3><p>Los <b>2 primeros de cada grupo</b> y los <b>terceros de los grupos A y B</b>. Los dos terceros se ordenan entre sí (mejor y segundo mejor) con los mismos criterios.</p></div>
+      <div><h3>Cuartos de final</h3><p><b>Llave #1:</b> 1.º A vs 2.º mejor tercero. <b>Llave #2:</b> 1.º B vs mejor tercero. <b>Llave #3:</b> 1.º C vs 2.º A. <b>Llave #4:</b> 2.º B vs 2.º C.</p></div>
+      <div><h3>Semifinales</h3><p>Ganador Llave #1 vs ganador Llave #3. Ganador Llave #2 vs ganador Llave #4.</p></div>
+      <div><h3>Fase final</h3><p>Los perdedores de semifinal juegan por el <b>tercer lugar</b> y los ganadores por el <b>primer lugar</b>.</p></div>
+      <div><h3>Días de juego</h3><p>Todos los partidos se juegan <b>solo los viernes</b>, según el calendario.</p></div>
       <div><h3>Empates en llaves</h3><p>No hay tiempo extra: si el partido termina empatado, se define por penales.</p></div>
       <div><h3>Mejor goleador</h3><p>El jugador con más goles en todo el torneo. Los penales de una definición no cuentan.</p></div>
       <div><h3>Portero menos batido</h3><p>Menor promedio de goles recibidos por partido. Si empatan, gana quien recibió menos goles y luego quien jugó más partidos.</p></div>
@@ -527,6 +560,21 @@ footer{margin-top:48px;font-size:13px;color:var(--muted)}
   </div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 </main>
+<div class="modal" id="calModal" hidden>
+  <form class="mbox" id="calForm" role="dialog" aria-modal="true" aria-labelledby="cTitle" novalidate>
+    <h3 id="cTitle">Fecha del partido</h3>
+    <p id="cWhat" style="margin:0 0 12px;color:var(--muted)"></p>
+    <label class="fld" id="cTxtWrap"><span>Actividad</span><input id="cTxt" maxlength="80"></label>
+    <label class="fld"><span>Fecha (solo viernes)</span><input id="cDate" type="date"></label>
+    <div class="ugrid">
+      <label class="fld"><span>Hora de inicio</span><input id="cIni" type="time" step="900"></label>
+      <label class="fld"><span>Hora de fin</span><input id="cFin" type="time" step="900"></label>
+    </div>
+    <label class="fld"><span>Cancha</span><input id="cCan" maxlength="40" placeholder="Cancha #3"></label>
+    <p class="lgerr" id="cErr" role="alert"></p>
+    <div class="mact"><button class="btn ghost" id="cClear" type="button">Quitar fecha</button><button class="btn ghost" id="cCancel" type="button">Cancelar</button><button class="btn" type="submit">Guardar</button></div>
+  </form>
+</div>
 <div class="modal" id="groupsModal" hidden>
   <div class="mbox wide" role="dialog" aria-modal="true" aria-labelledby="lgTitle2">
     <div class="uhead"><h3 id="lgTitle2">Cargar grupos ya sorteados</h3><button class="del" id="lgClose" type="button" aria-label="Cerrar">×</button></div>
@@ -577,12 +625,14 @@ footer{margin-top:48px;font-size:13px;color:var(--muted)}
 const PRISTINE='<!DOCTYPE html>\n'+document.documentElement.outerHTML;
 const LETTERS=['A','B','C'];
 const SCHED4=[[0,1],[2,3],[0,2],[1,3],[0,3],[1,2]];
+const SCHED3=[[0,1],[2,0],[1,2]]; // grupo de 3: 1 vs 2, 3 vs 1, 2 vs 3 (uno por jornada)
 const MIN_T=9,MAX_T=18;
 const schedCache={};
 function sched(n){ // partidos de un grupo de n equipos: {x,y,j} (j = jornada)
   if(schedCache[n])return schedCache[n];
   const out=[];
   if(n===4)SCHED4.forEach(([x,y],k)=>out.push({x,y,j:Math.floor(k/2)}));
+  else if(n===3)SCHED3.forEach(([x,y],k)=>out.push({x,y,j:k}));
   else{
     const m=n%2?n+1:n,arr=[...Array(m).keys()];
     for(let r=0;r<m-1;r++){
@@ -598,6 +648,7 @@ const gsched=L=>sched(S.groups[L].length);
 function allKeys(){const a=[];LETTERS.forEach(L=>gsched(L).forEach((m,k)=>a.push({key:L+k,L,k,j:m.j})));return a}
 function curOrder(){
   const all=allKeys();
+  if(hasCal())return all.sort((a,b)=>calSort(a.key)-calSort(b.key)||calTime(a.key).localeCompare(calTime(b.key))||a.j-b.j||a.L.localeCompare(b.L)||a.k-b.k).map(m=>m.key);
   if(Array.isArray(S.order)&&S.order.length===all.length&&all.every(m=>S.order.includes(m.key)))return S.order;
   return all.sort((a,b)=>a.j-b.j||a.L.localeCompare(b.L)||a.k-b.k).map(m=>m.key);
 }
@@ -605,13 +656,14 @@ const matchNo=key=>S.drawn?curOrder().indexOf(key)+1:0;
 function clearMatchDraw(){const had=!!(S.perm||S.order);S.perm=null;S.order=null;S.matchAt=null;return had}
 function sizesFor(N){const b=Math.floor(N/3),e=N%3;return{A:b+(e>=1?1:0),B:b+(e>=2?1:0),C:b}}
 function defaultGroups(N){const z=sizesFor(N);let i=0;const G={};LETTERS.forEach(L=>{G[L]=[];for(let p=0;p<z[L];p++)G[L].push(i++)});return G}
-const KO_Q8=[
-  {id:'q1',label:'Cuartos 1',a:'A1',b:'3P'},
-  {id:'q2',label:'Cuartos 2',a:'A2',b:'C2'},
-  {id:'q3',label:'Cuartos 3',a:'B1',b:'3M'},
-  {id:'q4',label:'Cuartos 4',a:'C1',b:'B2'},
-  {id:'s1',label:'Semifinal 1',a:'W:q1',b:'W:q2'},
-  {id:'s2',label:'Semifinal 2',a:'W:q3',b:'W:q4'},
+const KO_Q8=[ // Artículo 6 del reglamento
+  {id:'q1',label:'Llave #1',a:'A1',b:'3P'},
+  {id:'q2',label:'Llave #2',a:'B1',b:'3M'},
+  {id:'q3',label:'Llave #3',a:'C1',b:'A2'},
+  {id:'q4',label:'Llave #4',a:'B2',b:'C2'},
+  {id:'s1',label:'Semifinal 1',a:'W:q1',b:'W:q3'},
+  {id:'s2',label:'Semifinal 2',a:'W:q2',b:'W:q4'},
+  {id:'t3',label:'Tercer lugar',a:'L:s1',b:'L:s2'},
   {id:'f', label:'Final',a:'W:s1',b:'W:s2'}
 ];
 const KO_S4=[
@@ -679,11 +731,14 @@ function standing(L){
   return{rows:[...st].sort(cmp),complete:played===sc.length,played,total:sc.length};
 }
 
+// Terceros que pelean cupo: solo los de grupos de 4 o más (reglamento: terceros de A y B)
+function wildGroups(){if(Array.isArray(S.wildFrom)&&S.wildFrom.length>=2&&S.wildFrom.every(L=>S.groups[L]))return S.wildFrom;const e=LETTERS.filter(L=>S.groups[L].length>=4);return e.length>=2?e:LETTERS}
 function compute(){
   const G={};LETTERS.forEach(L=>G[L]=standing(L));
   const allDone=LETTERS.every(L=>G[L].complete);
   const s4=S.format==='s4',wi=s4?1:2;
-  const wild=LETTERS.map(L=>Object.assign({},G[L].rows[wi],{L})).sort(cmp3);
+  const WL=s4?LETTERS:wildGroups();
+  const wild=WL.map(L=>Object.assign({},G[L].rows[wi],{L})).sort(cmp3);
   const firsts=LETTERS.map(L=>Object.assign({},G[L].rows[0],{L})).sort(cmp3);
   const W={},WT={},LS={},LT={},M={};
   const lab=id=>KO.find(x=>x.id===id).label;
@@ -711,7 +766,7 @@ function compute(){
     M[k.id]={a,b,side,ready,tied:ready&&scored&&r.a===r.b};
   });
   const fid=s4?'xf':'f';
-  return{G,allDone,wild,M,champ:W[fid],runner:LS[fid],third:s4?W.x3:null};
+  return{G,allDone,wild,M,champ:W[fid],runner:LS[fid],third:s4?W.x3:(W.t3??null)};
 }
 
 /* ---------- construir ---------- */
@@ -748,7 +803,7 @@ function buildGroups(){
       fx+=`<div class="jor"><h4>Jornada ${j+1}</h4>`;
       const busy=new Set();
       sc.map((m,k)=>[m,k]).sort((a,b)=>(matchNo(L+a[1])||0)-(matchNo(L+b[1])||0)).forEach(([m,k])=>{if(m.j!==j)return;busy.add(m.x);busy.add(m.y);
-        fx+=`<div class="fx" data-g="${L}" data-k="${k}"><span class="pn"></span><span class="fa"></span>${scoreInput('data-s="0"')}<span class="dash" aria-hidden="true">–</span>${scoreInput('data-s="1"')}<span class="fb"></span></div>`;});
+        fx+=`<div class="fx" data-g="${L}" data-k="${k}"><span class="pn"></span><span class="fa"></span>${scoreInput('data-s="0"')}<span class="dash" aria-hidden="true">–</span>${scoreInput('data-s="1"')}<span class="fb"></span><span class="when"></span></div>`;});
       if(n%2){const r=[...Array(n).keys()].find(p=>!busy.has(p));fx+=`<p class="rest" data-g="${L}" data-r="${r}"></p>`}
       fx+='</div>';
     }
@@ -783,11 +838,11 @@ function buildBracket(){
       </span><p class="podium" id="podium"></p></div></div></div>`
    :`<h3 class="rh">Cuartos de final</h3><h3 class="rh">Semifinales</h3><h3 class="rh">Final</h3><h3 class="rh">Campeón</h3>
     <div class="round r1">
-      <div class="pair"><div class="slot">${mh('q1')}</div><div class="slot">${mh('q2')}</div></div>
-      <div class="pair"><div class="slot">${mh('q3')}</div><div class="slot">${mh('q4')}</div></div>
+      <div class="pair"><div class="slot">${mh('q1')}</div><div class="slot">${mh('q3')}</div></div>
+      <div class="pair"><div class="slot">${mh('q2')}</div><div class="slot">${mh('q4')}</div></div>
     </div>
     <div class="round in"><div class="pair"><div class="slot">${mh('s1')}</div><div class="slot">${mh('s2')}</div></div></div>
-    <div class="round in"><div class="slot feed">${mh('f')}</div></div>
+    <div class="round in pos"><div class="slot feed">${mh('f')}</div><div class="third">${mh('t3')}</div></div>
     <div class="round in"><div class="slot"><div class="champ" id="champ" aria-live="polite">
       <span class="trophy" aria-hidden="true">🏆</span>
       <span class="cwrap"><span class="cn" id="champName">Por definir</span>
@@ -817,11 +872,13 @@ function refresh(){
     art.classList.toggle('nodraw',!S.drawn);
     art.querySelector('.gs').textContent=!S.drawn?'Sin sortear':g.complete?'Grupo terminado':`${g.played} de ${g.total} partidos jugados`;
     const nq=S.format==='s4'?1:2;
-    art.querySelector('tbody').innerHTML=g.rows.map((r,i)=>`<tr class="${i<nq?'q':i===nq?'t':''}"><td>${i+1}</td><td class="tn">${esc(nm(r.t))}</td><td>${r.pj}</td><td>${r.g}</td><td>${r.e}</td><td>${r.p}</td><td>${r.gf}</td><td>${r.gc}</td><td>${r.dg>0?'+'+r.dg:r.dg}</td><td class="pts">${r.pts}</td></tr>`).join('');
+    const tOk=S.format==='s4'||wildGroups().includes(L);
+    art.querySelector('tbody').innerHTML=g.rows.map((r,i)=>`<tr class="${i<nq?'q':i===nq&&tOk?'t':''}"><td>${i+1}</td><td class="tn">${esc(nm(r.t))}</td><td>${r.pj}</td><td>${r.g}</td><td>${r.e}</td><td>${r.p}</td><td>${r.gf}</td><td>${r.gc}</td><td>${r.dg>0?'+'+r.dg:r.dg}</td><td class="pts">${r.pts}</td></tr>`).join('');
   });
   $('#groups').classList.toggle('numbered',!!(S.drawn&&S.order));
   $$('.fx').forEach(f=>{const n=matchNo(f.dataset.g+f.dataset.k);f.querySelector('.pn').textContent=n?'P'+n:''});
-  renderProgram();paintLock();
+  renderProgram(C);paintLock();
+  $$('.fx').forEach(f=>{f.querySelector('.when').textContent=calShort(f.dataset.g+f.dataset.k)});
   $$('.rest').forEach(r=>r.textContent='Descansa: '+nm(S.groups[r.dataset.g][+r.dataset.r]));
   const N=S.teams.length,z=LETTERS.map(L=>S.groups[L].length);
   $('#teamCount').textContent=`${N} equipos: Grupo A de ${z[0]}, B de ${z[1]} y C de ${z[2]}. Mínimo ${MIN_T}, máximo ${MAX_T}.`;
@@ -846,6 +903,7 @@ function refresh(){
   KO.forEach(k=>{
     const el=$(`.match[data-m="${k.id}"]`),m=C.M[k.id];
     el.classList.toggle('tied',m.tied);
+    el.querySelector('.mh span').textContent=k.label+(calShort(k.id)?' · '+calShort(k.id):'');
     const need=new Set();
     [k.a,k.b].forEach((code,i)=>{const r=i?m.b:m.a;if(r.t!=null||code[1]===':')return;
       if(code[0]==='3'||code[0]==='P')LETTERS.forEach(L=>{if(!C.G[L].complete)need.add(L)});else need.add(code[0]);});
@@ -1096,7 +1154,8 @@ function paintDraw(G){
 }
 function setDrawMsg(){
   $('#drawMsg').innerHTML=S.drawn
-    ?(S.drawManual?'Grupos cargados del sorteo hecho aparte':'Sorteo realizado')+(S.drawnAt?' el <b>'+esc(S.drawnAt)+'</b>':'')+(/\.$/.test(S.drawnAt||'')?' ':'. ')+'Cada equipo quedó donde salió.'
+    ?S.official?'Grupos ya establecidos: A y B de 4 equipos y C de 3, con el orden fijo. Solo se pueden corregir los nombres.'
+    :(S.drawManual?'Grupos cargados del sorteo hecho aparte':'Sorteo realizado')+(S.drawnAt?' el <b>'+esc(S.drawnAt)+'</b>':'')+(/\.$/.test(S.drawnAt||'')?' ':'. ')+'Cada equipo quedó donde salió.'
     :S.drawVoid?'El sorteo anterior se anuló porque se escribieron nombres de equipos que se habían sorteado sin nombre. Cuando termine de anotar los equipos, sortee de nuevo.'
     :'Todavía no se ha hecho el sorteo de grupos. Anote primero los nombres de los equipos.';
   $('#drawMsg').classList.toggle('warn',!S.drawn&&!!S.drawVoid);
@@ -1125,15 +1184,19 @@ async function runDraw(){
   setTimeout(()=>document.body.classList.remove('shuffled'),700);
 }
 /* ---------- bloqueo de sorteos ---------- */
-const isLocked=()=>!!(S.locked&&S.drawn);
-function lockedMsg(){toast('Los sorteos están bloqueados. Para cambiarlos, primero toque "Desbloquear sorteos" en el recuadro del sorteo.')}
+const isLocked=()=>!!((S.locked||S.fixed)&&S.drawn);
+function lockedMsg(){if(S.fixed){toast('El orden de los equipos está fijo. Solo se pueden cambiar los nombres.');return}toast('Los sorteos están bloqueados. Para cambiarlos, primero toque "Desbloquear sorteos" en el recuadro del sorteo.')}
 function paintLock(){
   const bar=$('#lockBar'),L=isLocked();
+  document.body.classList.toggle('fixed',!!S.fixed);
+  $('#teamsIntro').textContent=S.fixed?'Los equipos ya tienen su grupo y su posición, y ese orden no se puede cambiar. Solo puede corregir el nombre de cada equipo y escribir el de su portero.'
+    :'Escriba el nombre de cada equipo y, si quiere, el de su portero. Puede agregar o quitar equipos. Luego haga el sorteo: el sistema saca los equipos uno por uno al azar y cada uno queda en el grupo y la posición donde sale.';
   document.body.classList.toggle('locked',L);
   bar.hidden=!S.drawn;bar.classList.toggle('off',!L);
   $('#lockTxt').innerHTML=L
     ?'🔒 <b>Sorteos bloqueados</b>'+(S.lockedAt?' desde el '+esc(S.lockedAt):'')+(S.lockedBy?' por '+esc(S.lockedBy):'')+'. Nadie puede volver a sortear, cargar grupos, cambiar turnos ni agregar o quitar equipos.'
     :'Los sorteos están <b>desbloqueados</b>. Cuando estén listos, bloquéelos para que nadie los cambie por error.';
+  if(S.fixed)$('#lockTxt').innerHTML='🔒 <b>Orden de equipos fijo.</b> Los grupos y posiciones no cambian; solo se pueden corregir los nombres de los equipos.';
   $('#lockBtn').textContent=L?'Desbloquear sorteos':'🔒 Bloquear sorteos';
   $('#lockBtn').className='btn sm'+(L?' ghost':'');
   $('#reset').title=L?'Bloqueado: primero desbloquee los sorteos':'';
@@ -1159,7 +1222,10 @@ async function onDraw(){
 $('#draw2').addEventListener('click',onDraw);
 
 /* ---------- sorteo de partidos de la fase de grupos ---------- */
-function renderProgram(){
+function renderProgram(C){
+  const cal=hasCal();$('#calBox').hidden=!cal||!S.drawn;$('#applyOfficial').hidden=S.official===OFFICIAL.version;
+  $('#drawMatches').hidden=cal;if(cal)$('#normalOrder').hidden=true;
+  if(cal){$('#prog').hidden=true;$('#matchMsg').innerHTML='Formato y calendario según el <b>Artículo 6 del reglamento</b>. Todos los partidos se juegan los viernes; la fecha de cada partido aparece debajo del marcador.';renderCalendar(C);return}
   const msg=$('#matchMsg'),btn=$('#drawMatches'),sorted=!!(S.drawn&&Array.isArray(S.order)&&curOrder()===S.order);
   btn.disabled=!S.drawn||drawing;$('#normalOrder').hidden=!sorted;
   msg.innerHTML=!S.drawn?'Después del sorteo de grupos se arman los partidos: jornada 1, 1 vs 2 y 3 vs 4; jornada 2, 1 vs 3 y 2 vs 4; jornada 3, 1 vs 4 y 2 vs 3.'
@@ -1272,7 +1338,13 @@ $('#lgApply').addEventListener('click',async()=>{
   toast('Grupos cargados: '+LETTERS.map(L=>'Grupo '+L+' con '+G[L].length).join(', ')+'.');
 });
 $('#reset').addEventListener('click',async()=>{
-  if(drawing)return;if(isLocked()){lockedMsg();return}
+  if(drawing)return;
+  if(S.fixed){
+    if(!hasResults()){toast('No hay resultados para borrar.');return}
+    if(!await askConfirm('¿Borrar todos los resultados?','Se borran los marcadores de grupos y llaves y los goles de los goleadores. Los equipos, su orden y el calendario se mantienen.','Borrar resultados'))return;
+    clearResults();save();rebuildAll();toast('Resultados borrados. Los equipos y su orden se mantienen.');return;
+  }
+  if(isLocked()){lockedMsg();return}
   if(!hasResults()&&!S.drawn){toast('No hay resultados ni sorteo para borrar.');return}
   if(!await askConfirm('¿Borrar resultados y sorteo?','Se borran el sorteo de grupos, los marcadores de grupos y llaves y los goles de los goleadores. Se mantienen los equipos con sus porteros y jugadores.','Borrar todo menos los equipos'))return;
   resetStructure();save();rebuildAll();toast('Se borraron los resultados y el sorteo. Los equipos se mantienen.');
@@ -1306,11 +1378,14 @@ function formatTexts(){
     ?'12 equipos en tres grupos de cuatro. Pasan directo a semifinales los tres primeros de grupo y el mejor segundo. En total se juegan 22 partidos: 18 de grupos, 2 semifinales, el tercer lugar y la final.'
     :(()=>{const N=S.teams.length,z=LETTERS.map(L=>S.groups[L].length),gm=LETTERS.reduce((a,L)=>a+gsched(L).length,0);
       const g=z[0]===z[2]?`tres grupos de ${z[0]}`:`tres grupos: A de ${z[0]}, B de ${z[1]} y C de ${z[2]}`;
-      return `${N} equipos en ${g}. Pasan a cuartos de final el primero y el segundo de cada grupo, más los dos mejores terceros. En total se juegan ${gm+7} partidos: ${gm} de grupos, 4 de cuartos, 2 semifinales y la final.`})();
+      const W=wildGroups(),tt=W.length===2?`los terceros de los grupos ${W[0]} y ${W[1]}`:'los dos mejores terceros';
+      return `${N} equipos en ${g}. Pasan a cuartos de final los dos primeros de cada grupo y ${tt}. Todos los partidos se juegan los viernes. En total son ${gm+8} partidos: ${gm} de grupos, 4 de cuartos, 2 semifinales, el tercer lugar y la final.`})();
   $('#legendT').textContent=s4?'segundo, pelea un cupo.':'tercero, pelea un cupo.';
   $('#t-te').textContent=s4?'Mejor segundo':'Mejores terceros';
-  $('#wildIntro').textContent=s4?'Los segundos de los tres grupos se comparan entre sí. El mejor completa los cuatro cupos de semifinales.':'Los terceros de los tres grupos se comparan entre sí. Los dos mejores completan los ocho cupos.'+(new Set(LETTERS.map(L=>S.groups[L].length)).size>1?' Como los grupos no tienen la misma cantidad de equipos, se compara el promedio de puntos por partido.':'');
-  $('#llIntro').textContent=(s4?'El mejor primero enfrenta al mejor segundo, y los otros dos primeros se enfrentan entre sí.':'Los cruces de cuartos de final son fijos: A1 contra el 2.º mejor tercero, A2 contra C2, B1 contra el mejor tercero y C1 contra B2.')+' Si un partido termina empatado aparecen las casillas de penales.';
+  $('#wildIntro').textContent=s4?'Los segundos de los tres grupos se comparan entre sí. El mejor completa los cuatro cupos de semifinales.'
+    :wildGroups().length===2?`Según el reglamento, clasifican los terceros de los grupos ${wildGroups().join(' y ')}. Se ordenan entre sí: el mejor tercero juega con el 1.º de B y el segundo mejor con el 1.º de A.`
+    :'Los terceros de los tres grupos se comparan entre sí. Los dos mejores completan los ocho cupos.'+(new Set(LETTERS.map(L=>S.groups[L].length)).size>1?' Como los grupos no tienen la misma cantidad de equipos, se compara el promedio de puntos por partido.':'');
+  $('#llIntro').textContent=(s4?'El mejor primero enfrenta al mejor segundo, y los otros dos primeros se enfrentan entre sí.':'Llaves según el reglamento: #1 1.º A vs 2.º mejor tercero, #2 1.º B vs mejor tercero, #3 1.º C vs 2.º A y #4 2.º B vs 2.º C. En semifinales: ganador #1 vs ganador #3 y ganador #2 vs ganador #4. Los perdedores de semifinal juegan por el tercer lugar.')+' Si un partido termina empatado aparecen las casillas de penales.';
   $$('.rules [data-fmt]').forEach(d=>d.hidden=d.dataset.fmt!==S.format);
   $$('input[name=fmt]').forEach(r=>r.checked=r.value===S.format);
 }
@@ -1348,6 +1423,7 @@ function paintSession(){
   $('#usersBtn').hidden=!isAdmin()||!connected;
   setRO(!(isAdmin()&&connected));
   if(!dirty&&!saving)setSync(!connected?'offline':isAdmin()?'ok':'ro');
+  if(officialPending&&isAdmin()&&connected){officialPending=false;save()}
 }
 function rebuildAll(){
   const y=window.scrollY;
@@ -1358,7 +1434,7 @@ function rebuildAll(){
 function applyRemote(r){
   const o=r.estado?normalize(JSON.parse(r.estado)):null;
   ver=r.version||0;lastInfo={actualizado:r.actualizado,por:r.por};
-  if(o){S=o;S.format='q8';KO=KO_Q8;saveLocal();rebuildAll()}
+  if(o){S=o;S.format='q8';KO=KO_Q8;maybeOfficial();saveLocal();rebuildAll()}
 }
 function sessionLost(msg){
   SES=null;ls.del(SES_KEY);connected=false;$('#usersModal').hidden=true;
@@ -1588,6 +1664,142 @@ async function removeTeam(i){
 }
 $('#addTeam').addEventListener('click',addTeam);
 
+/* ---------- calendario (solo viernes) ---------- */
+const DIAS_ES=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'],MES_ES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+const hasCal=()=>!!(S.cal&&Object.keys(S.cal).length);
+const pDate=f=>{const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(f||'');return m?new Date(+m[1],+m[2]-1,+m[3]):null};
+const isFriday=f=>{const d=pDate(f);return !!d&&d.getDay()===5};
+const fmtH=h=>{if(!h)return'';let [H,M]=h.split(':').map(Number);const pm=H>=12;H=H%12||12;return H+':'+String(M).padStart(2,'0')+(pm?' pm':' am')};
+const fmtDay=f=>{const d=pDate(f);if(!d)return'';const t=DIAS_ES[d.getDay()]+' '+d.getDate()+' de '+MES_ES[d.getMonth()]+' de '+d.getFullYear();return t[0].toUpperCase()+t.slice(1)};
+const calSort=key=>{const c=S.cal&&S.cal[key];return c&&c.fecha?pDate(c.fecha).getTime():9e15};
+const calTime=key=>(S.cal&&S.cal[key]&&S.cal[key].hora)||'99:99';
+function calShort(key){const c=S.cal&&S.cal[key];if(!c||!c.fecha)return'';const d=pDate(c.fecha);if(!d)return'';
+  return (d.getDay()===5?'Vie ':DIAS_ES[d.getDay()].slice(0,3)+' ')+d.getDate()+' '+MES_ES[d.getMonth()].slice(0,3)+(c.hora?', '+fmtH(c.hora):'')}
+const addHour=h=>{const [H,M]=h.split(':').map(Number);return String((H+1)%24).padStart(2,'0')+':'+String(M).padStart(2,'0')};
+
+const OFFICIAL={ // lista oficial de grupos y calendario del Torneo de Futbolito STENEE 2026
+  groups:{A:['Legal','Fosode','Gerencia Administrativa','Santa Fe Transmisión'],B:['DIT','Gestión de la Medida','Líneas de Transmisión','GTIC'],C:['Distribución','Operación','Servicios Generales']},
+  renamed:{'Transmisión Generación':'DIT','Alumbrado':'Distribución'},
+  wildFrom:['A','B'], // reglamento: clasifican los terceros de los grupos A y B
+  version:3,
+  cancha:'Cancha #3',
+  events:[{fecha:'2026-10-30',hora:'16:30',fin:'17:00',texto:'Actos de inauguración del torneo'},
+          {fecha:'2026-10-30',hora:'17:00',fin:'18:00',texto:'Partido de exhibición'},
+          {fecha:'2026-11-13',hora:'19:00',fin:'20:00',texto:'Partido de exhibición',cancha:'Cancha #2'},
+          {fecha:'2026-12-11',hora:'16:00',fin:'17:00',texto:'Partido de Jubilados de la ENEE'},
+          {fecha:'2026-12-11',hora:'17:00',fin:'18:00',texto:'Selección de Mujeres ENEE'}],
+  cal:{A0:['2026-10-30','18:00'],B0:['2026-10-30','19:00'],C0:['2026-10-30','20:00'],
+       A1:['2026-11-06','17:00'],B1:['2026-11-06','18:00'],C1:['2026-11-06','19:00'],
+       A2:['2026-11-13','17:00'],A3:['2026-11-13','18:00'],C2:['2026-11-13','19:00'],
+       B2:['2026-11-13','17:00','Cancha #2'],B3:['2026-11-13','18:00','Cancha #2'],
+       A4:['2026-11-20','17:00'],B4:['2026-11-20','18:00'],
+       A5:['2026-11-20','17:00','Cancha #2'],B5:['2026-11-20','18:00','Cancha #2'],
+       q1:['2026-11-27','17:00'],q2:['2026-11-27','18:00'],q3:['2026-11-27','19:00'],q4:['2026-11-27','20:00'],
+       s1:['2026-12-04','17:00'],s2:['2026-12-04','18:00'],
+       t3:['2026-12-11','18:00'],f:['2026-12-11','19:00']}
+};
+function officialPlan(){
+  const names=LETTERS.flatMap(L=>OFFICIAL.groups[L]);
+  const ren={};Object.entries(OFFICIAL.renamed||{}).forEach(([a,b])=>ren[normTxt(a)]=b);
+  const oldIdx={};S.teams.forEach((n,i)=>{const k=normTxt(nm(i));oldIdx[k]=i;if(ren[k])oldIdx[normTxt(ren[k])]=i});
+  const map={};names.forEach((n,j)=>{const o=oldIdx[normTxt(n)];if(o!=null)map[o]=j});
+  return{names,map,lost:S.scorers.filter(p=>map[p.team]==null).length};
+}
+function applyOfficial(plan){
+  const {names,map}=plan||officialPlan();
+  const K={};Object.keys(S.keepers||{}).forEach(k=>{if(map[k]!=null)K[map[k]]=S.keepers[k]});
+  clearResults();
+  S.scorers=S.scorers.filter(p=>map[p.team]!=null).map(p=>Object.assign(p,{team:map[p.team]}));
+  S.keepers=K;S.teams=names.slice();
+  let i=0;S.groups={};LETTERS.forEach(L=>{S.groups[L]=OFFICIAL.groups[L].map(()=>i++)});
+  S.drawn=true;S.drawManual=true;S.drawVoid=false;S.drawNames=S.teams.slice();S.drawnAt='según el Artículo 6 del reglamento';
+  S.order=null;S.matchAt=null;delete S.perm;
+  S.cal={};Object.keys(OFFICIAL.cal).forEach(k=>{const [f,h,c]=OFFICIAL.cal[k];S.cal[k]={fecha:f,hora:h,fin:addHour(h),cancha:c||OFFICIAL.cancha}});
+  S.events=OFFICIAL.events.map((e,n)=>Object.assign({id:'e'+n,cancha:OFFICIAL.cancha},e));
+  S.locked=true;S.lockedAt=new Date().toLocaleString('es-HN',{dateStyle:'short',timeStyle:'short'});S.lockedBy='Reglamento';
+  S.wildFrom=OFFICIAL.wildFrom.slice();S.fixed=true;S.official=OFFICIAL.version;rosterTeam=null;
+}
+let officialPending=false;
+// Se aplica solo si todavía no hay resultados y no se pierden jugadores; si no, queda el botón para el administrador.
+function maybeOfficial(){
+  if(S.official===OFFICIAL.version||hasResults())return false;
+  const plan=officialPlan();if(plan.lost)return false;
+  applyOfficial(plan);officialPending=true;return true;
+}
+$('#applyOfficial').addEventListener('click',async()=>{
+  const plan=officialPlan();
+  const msg='Los 12 equipos quedan en su grupo y posición, con el orden fijo, y se carga el calendario de los viernes. Se borran los marcadores anotados'+(plan.lost?' y '+plural(plan.lost,'jugador','jugadores')+' de equipos que ya no están':'')+'. Los porteros y jugadores de equipos con el mismo nombre se conservan.';
+  if(!await askConfirm('¿Aplicar formato y calendario del reglamento?',msg,'Aplicar'))return;
+  applyOfficial(plan);save();rebuildAll();toast('Formato y calendario aplicados.');
+});
+
+function calItems(C){
+  const it=[];
+  if(S.drawn)allKeys().forEach(m=>{const g=gsched(m.L)[m.k];if(!g)return;
+    const r=S.gm[m.key],done=!!(r&&r[0]!=null&&r[1]!=null);
+    it.push({key:m.key,kind:'g',c:S.cal[m.key],label:'Grupo '+m.L+' · '+m.L+(g.x+1)+' vs '+m.L+(g.y+1),
+      a:nm(S.groups[m.L][g.x]),b:nm(S.groups[m.L][g.y]),done,res:done?r[0]+' – '+r[1]:''});});
+  KO.forEach(k=>{const m=C.M[k.id];if(!m)return;const r=S.ko[k.id]||{},done=!!m.side;
+    it.push({key:k.id,kind:'k',c:S.cal[k.id],label:k.label,a:m.a.t!=null?nm(m.a.t):null,b:m.b.t!=null?nm(m.b.t):null,pa:m.a.ph,pb:m.b.ph,done,
+      res:r.a!=null&&r.b!=null?r.a+' – '+r.b+(r.pa!=null&&r.pb!=null&&r.a===r.b?' ('+r.pa+'–'+r.pb+' pen.)':''):''});});
+  (S.events||[]).forEach(e=>it.push({key:e.id,kind:'e',c:e,label:e.texto}));
+  return it;
+}
+function renderCalendar(C){
+  const it=calItems(C),days={},none=[];
+  it.forEach(x=>{if(x.c&&x.c.fecha)(days[x.c.fecha]=days[x.c.fecha]||[]).push(x);else if(x.kind!=='e')none.push(x)});
+  let nextKey=null;
+  const order=Object.keys(days).sort();
+  order.forEach(f=>days[f].sort((a,b)=>(a.c.hora||'').localeCompare(b.c.hora||'')||(b.c.cancha||'').localeCompare(a.c.cancha||'')));
+  for(const f of order){const n=days[f].find(x=>x.kind!=='e'&&!x.done);if(n){nextKey=n.key;break}}
+  const row=(x,one)=>{
+    const hr=x.c&&x.c.hora?fmtH(x.c.hora)+(x.c.fin?' – '+fmtH(x.c.fin):''):'Sin hora';
+    const who=x.kind==='e'?esc(x.label)+(!one&&x.c.cancha?' · '+esc(x.c.cancha):'')
+      :`<span class="tag2">${esc(x.label)}${!one&&x.c&&x.c.cancha?' · '+esc(x.c.cancha):''}</span>`+(x.a!=null?'<b>'+esc(x.a)+'</b>':'<span class="ph">'+esc(x.pa||'')+'</span>')+'<span class="vs">vs</span>'+(x.b!=null?'<b>'+esc(x.b)+'</b>':'<span class="ph">'+esc(x.pb||'')+'</span>');
+    return `<div class="calrow ${x.kind==='e'?'ev':''} ${x.done?'done':''} ${x.key===nextKey?'next':''}"><span class="hr">${hr}</span><span class="what">${who}</span><span class="res">${x.res||(x.key===nextKey?'Sigue':'')}</span><button class="caledit" type="button" data-key="${x.key}">Editar</button></div>`;
+  };
+  const warn=f=>isFriday(f)?'':'<span class="chip2">No es viernes</span>';
+  $('#calList').innerHTML=order.map(f=>{const cs=[...new Set(days[f].map(x=>x.c.cancha).filter(Boolean))];
+    return `<div class="calday"><h4>${esc(fmtDay(f))}${cs.length===1?' <small>'+esc(cs[0])+'</small>':''} ${warn(f)}</h4>${days[f].map(x=>row(x,cs.length===1)).join('')}</div>`}).join('')+
+    (none.length?`<div class="calday"><h4>Sin fecha asignada</h4>${none.map(x=>row(x,false)).join('')}</div>`:'');
+}
+let calKey=null;
+const calLabel=key=>{const e=(S.events||[]).find(x=>x.id===key);if(e)return e.texto;const k=KO.find(x=>x.id===key);if(k)return k.label;
+  const L=key[0],g=S.groups[L]&&gsched(L)[+key.slice(1)];return g?'Grupo '+L+': '+nm(S.groups[L][g.x])+' vs '+nm(S.groups[L][g.y]):key};
+function calGet(key){const e=(S.events||[]).find(x=>x.id===key);return e||(S.cal&&S.cal[key])||null}
+$('#calList').addEventListener('click',e=>{
+  const b=e.target.closest('.caledit');if(!b||RO)return;calKey=b.dataset.key;
+  const c=calGet(calKey)||{},isEv=(S.events||[]).some(x=>x.id===calKey);
+  $('#cTitle').textContent=isEv?'Actividad':'Fecha del partido';$('#cWhat').textContent=calLabel(calKey);
+  $('#cTxtWrap').hidden=!isEv;$('#cTxt').value=isEv?c.texto:'';
+  $('#cDate').value=c.fecha||'';$('#cIni').value=c.hora||'';$('#cFin').value=c.fin||'';$('#cCan').value=c.cancha||OFFICIAL.cancha;
+  $('#cClear').textContent=isEv?'Quitar actividad':'Quitar fecha';$('#cErr').textContent='';$('#calModal').hidden=false;$('#cDate').focus();
+});
+const closeCal=()=>{$('#calModal').hidden=true};
+$('#cCancel').addEventListener('click',closeCal);
+$('#calModal').addEventListener('click',e=>{if(e.target===$('#calModal'))closeCal()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#calModal').hidden)closeCal()});
+$('#cIni').addEventListener('change',()=>{const v=$('#cIni').value;if(v&&(!$('#cFin').value||$('#cFin').value<=v))$('#cFin').value=addHour(v)});
+$('#cClear').addEventListener('click',()=>{
+  if((S.events||[]).some(x=>x.id===calKey))S.events=S.events.filter(x=>x.id!==calKey);else if(S.cal)delete S.cal[calKey];
+  closeCal();save();refresh();toast('Fecha quitada.');
+});
+$('#calForm').addEventListener('submit',e=>{
+  e.preventDefault();
+  const f=$('#cDate').value,h=$('#cIni').value,fin=$('#cFin').value,can=$('#cCan').value.trim(),err=$('#cErr');
+  const isEv=(S.events||[]).some(x=>x.id===calKey);
+  if(!f||!h){err.textContent='Escriba la fecha y la hora de inicio.';return}
+  if(!isFriday(f)){err.textContent='Los partidos solo se juegan los viernes. Elija un viernes.';$('#cDate').focus();return}
+  const end=fin&&fin>h?fin:addHour(h);
+  const clash=[...Object.entries(S.cal||{}),...(S.events||[]).map(x=>[x.id,x])]
+    .find(([k,c])=>k!==calKey&&c.fecha===f&&(c.cancha||'')===(can||'')&&c.hora<end&&(c.fin||addHour(c.hora))>h);
+  if(clash){err.textContent='Ese horario choca con '+calLabel(clash[0])+' en la misma cancha.';return}
+  if(isEv){const ev=S.events.find(x=>x.id===calKey);Object.assign(ev,{texto:$('#cTxt').value.trim()||ev.texto,fecha:f,hora:h,fin:end,cancha:can})}
+  else{S.cal=S.cal||{};S.cal[calKey]={fecha:f,hora:h,fin:end,cancha:can}}
+  closeCal();save();refresh();toast('Fecha guardada: '+fmtDay(f)+', '+fmtH(h)+'.');
+});
+
+if(maybeOfficial())saveLocal();
 buildTeams();buildDraw();buildGroups();buildBracket();formatTexts();refresh();
 if(ONLINE){
   try{SES=JSON.parse(ls.get(SES_KEY)||'null')}catch(e){SES=null}
