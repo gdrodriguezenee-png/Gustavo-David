@@ -76,6 +76,23 @@ h2{font:700 32px/1.15 var(--hand);margin:52px 0 6px;color:var(--ink)}
 .lockbar[hidden]{display:none}
 .lockbar p{margin:0;font-size:14.5px}
 .lockbar.off{background:var(--amber-bg);border-left-color:var(--amber)}
+.card-y,.card-r{display:inline-block;width:11px;height:15px;border-radius:2px;vertical-align:-2px;margin-right:4px}
+.card-y{background:#F2C200}.card-r{background:#D7263D}
+.ccnt{display:inline-flex;align-items:center;gap:2px;white-space:nowrap}
+.ccnt .gnum{min-width:20px}
+.sus{display:inline-block;font:700 11.5px var(--cond);color:#fff;background:var(--danger);border-radius:999px;padding:1px 8px;margin-left:6px;vertical-align:1px}
+.sus.warn{background:var(--amber);color:#1b1300}
+.cardsbox{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:20px}
+.cardalert{border-radius:10px;padding:12px 16px;margin:0 0 16px;background:var(--mint);border-left:4px solid var(--marker)}
+.cardalert.on{background:var(--amber-bg);border-left-color:var(--danger)}
+.cardalert p{margin:0 0 6px;font-weight:600}
+.cardalert ul{margin:0;padding:0;list-style:none}
+.cardalert li{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:4px 0}
+.served{font:600 12.5px var(--sans);padding:4px 9px;border-radius:6px;border:1.5px solid var(--line);background:var(--paper);color:var(--ink);cursor:pointer}
+.limitrow label,.limitrow>span{}
+body.ro .limitrow label,body.ro .limitrow>span:not(#cardLimitTxt){display:none}
+.limitrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 16px;font-size:15px}
+.limitrow input{width:64px;text-align:center;font:600 16px var(--cond);padding:6px;color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:6px}
 body.fixed #draw2,body.fixed #loadGroups,body.fixed #drawMatches,body.fixed #normalOrder,body.fixed #addTeam,body.fixed .tdel,body.fixed #lockBtn{display:none}
 body.fixed #reset{opacity:1}
 body.locked #draw2,body.locked #loadGroups,body.locked #drawMatches,body.locked #normalOrder,body.locked #addTeam,body.locked .tdel{display:none}
@@ -263,7 +280,7 @@ body.ro .caledit,body.ro #applyOfficial{display:none}
 .fld span{display:block;font-size:14px;font-weight:600;margin-bottom:4px}
 .fld input{width:100%;font:inherit;font-size:16px;padding:10px 12px;color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:6px}
 .lgerr{color:var(--danger);font-size:14px;min-height:1.2em;margin:0 0 10px}
-body.ro .tdel,body.ro #drawMatches,body.ro #normalOrder,body.ro #addTeam,body.ro #draw,body.ro #draw2,body.ro #loadGroups,body.ro #reset,body.ro .addp,body.ro .bulk,body.ro .step,body.ro .del,body.ro .pending .go{display:none}
+body.ro .served,body.ro #cardLimit,body.ro .tdel,body.ro #drawMatches,body.ro #normalOrder,body.ro #addTeam,body.ro #draw,body.ro #draw2,body.ro #loadGroups,body.ro #reset,body.ro .addp,body.ro .bulk,body.ro .step,body.ro .del,body.ro .pending .go{display:none}
 body.ro .gnum{min-width:0}
 body[data-view="gate"] main,body[data-view="gate"] .sesbar{display:none}
 .gate{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:24px 16px}
@@ -502,9 +519,34 @@ footer{margin-top:48px;font-size:13px;color:var(--muted)}
         <div class="iresult" id="bulkResult" aria-live="polite" hidden></div>
       </details>
       <div class="tw"><table class="std" id="rosterTable">
-        <thead><tr><th title="Número de camiseta">N.º</th><th class="tn">Jugador</th><th>Goles</th><th><span style="position:absolute;left:-9999px">Quitar</span></th></tr></thead>
+        <thead><tr><th title="Número de camiseta">N.º</th><th class="tn">Jugador</th><th>Goles</th><th title="Tarjetas amarillas"><span class="card-y" aria-hidden="true"></span>Amarillas</th><th title="Tarjetas rojas"><span class="card-r" aria-hidden="true"></span>Rojas</th><th><span style="position:absolute;left:-9999px">Quitar</span></th></tr></thead>
         <tbody></tbody>
       </table></div>
+    </div>
+  </section>
+
+  <section id="tarjetas" aria-labelledby="t-ta">
+    <h2 id="t-ta">Tarjetas</h2>
+    <p class="intro">Se anotan en la planilla de cada equipo con los botones + y −. Aquí se ven los totales y los jugadores que deben cumplir suspensión.</p>
+    <div class="limitrow"><label for="cardLimit">Avisar cuando un jugador llegue a</label><input id="cardLimit" type="number" min="1" max="10" inputmode="numeric"><span>tarjetas amarillas. Una roja siempre genera aviso.</span><span id="cardLimitTxt" style="color:var(--muted)"></span></div>
+    <div class="cardalert" id="cardAlert" aria-live="polite"></div>
+    <div class="cardsbox">
+      <article class="award" aria-labelledby="t-tq">
+        <h3 id="t-tq">Por equipo</h3>
+        <p class="sub">Menos tarjetas va primero. Se cuenta 1 punto por amarilla y 3 por roja.</p>
+        <div class="tw"><table class="std" id="cardTeams">
+          <thead><tr><th>#</th><th class="tn">Equipo</th><th><span class="card-y" aria-hidden="true"></span>Amarillas</th><th><span class="card-r" aria-hidden="true"></span>Rojas</th><th title="Puntos de disciplina">Pts</th></tr></thead>
+          <tbody></tbody>
+        </table></div>
+      </article>
+      <article class="award" aria-labelledby="t-tj">
+        <h3 id="t-tj">Por jugador</h3>
+        <p class="sub">Solo jugadores con tarjetas. Las suspensiones activas aparecen en rojo.</p>
+        <div class="tw"><table class="std" id="cardPlayers">
+          <thead><tr><th>N.º</th><th class="tn">Jugador</th><th class="tn">Equipo</th><th><span class="card-y" aria-hidden="true"></span></th><th><span class="card-r" aria-hidden="true"></span></th><th class="tn">Estado</th></tr></thead>
+          <tbody></tbody>
+        </table></div>
+      </article>
     </div>
   </section>
 
@@ -546,6 +588,7 @@ footer{margin-top:48px;font-size:13px;color:var(--muted)}
       <div><h3>Fase final</h3><p>Los perdedores de semifinal juegan por el <b>tercer lugar</b> y los ganadores por el <b>primer lugar</b>.</p></div>
       <div><h3>Días de juego</h3><p>Todos los partidos se juegan <b>solo los viernes</b>, según el calendario.</p></div>
       <div><h3>Empates en llaves</h3><p>No hay tiempo extra: si el partido termina empatado, se define por penales.</p></div>
+      <div><h3>Tarjetas</h3><p>Al llegar al límite de amarillas, o con una roja, el jugador debe cumplir suspensión. Cuando la cumpla, el administrador la marca como cumplida y su conteo vuelve a empezar.</p></div>
       <div><h3>Mejor goleador</h3><p>El jugador con más goles en todo el torneo. Los penales de una definición no cuentan.</p></div>
       <div><h3>Portero menos batido</h3><p>Menor promedio de goles recibidos por partido. Si empatan, gana quien recibió menos goles y luego quien jugó más partidos.</p></div>
     </div>
@@ -932,8 +975,8 @@ function refresh(){
 }
 
 /* ---------- acciones ---------- */
-const hasResults=()=>Object.values(S.gm).some(r=>r&&(r[0]!=null||r[1]!=null))||Object.values(S.ko).some(r=>r&&Object.values(r).some(v=>v!=null))||S.scorers.some(p=>p.goals>0);
-function clearResults(){S.gm={};S.ko={};S.scorers.forEach(p=>p.goals=0);$$('input.sc').forEach(i=>i.value='');}
+const hasResults=()=>Object.values(S.gm).some(r=>r&&(r[0]!=null||r[1]!=null))||Object.values(S.ko).some(r=>r&&Object.values(r).some(v=>v!=null))||S.scorers.some(p=>p.goals>0||p.yc>0||p.rc>0);
+function clearResults(){S.gm={};S.ko={};S.scorers.forEach(p=>{p.goals=0;p.yc=0;p.rc=0;p.ycBase=0;p.rcBase=0});$$('input.sc').forEach(i=>i.value='');}
 
 /* ---------- premios individuales ---------- */
 function teamStats(C){
@@ -947,7 +990,7 @@ const plural=(n,a,b)=>n+' '+(n===1?a:b);
 const fmtAvg=v=>v.toFixed(2).replace('.',',');
 function renderAwards(C){
   const st=teamStats(C),final=C.champ!=null;
-  renderRoster();
+  renderRoster();renderCards();
   // goleadores
   const list=S.scorers.filter(p=>p.goals>0).sort((a,b)=>b.goals-a.goals||a.name.localeCompare(b.name,'es'));
   const tb=$('#golTable tbody');
@@ -988,6 +1031,51 @@ function renderAwards(C){
 const num0=v=>{const n=num(v);return n==null?null:Math.min(99,n)};
 let rosterTeam=null;
 const teamOrder=()=>S.drawn?LETTERS.flatMap(L=>S.groups[L]):[...S.teams.keys()];
+/* ---------- tarjetas ---------- */
+const cardLimit=()=>{const n=+S.cardLimit;return n>=1&&n<=10?Math.floor(n):3};
+const yc=p=>p.yc||0,rc=p=>p.rc||0;
+const ycAct=p=>Math.max(0,yc(p)-(p.ycBase||0)),rcAct=p=>Math.max(0,rc(p)-(p.rcBase||0));
+function cardState(p){
+  const y=ycAct(p),r=rcAct(p),L=cardLimit();
+  if(r>0)return{s:'sus',txt:'Suspendido por roja'};
+  if(y>=L)return{s:'sus',txt:'Suspendido: '+y+' amarillas'};
+  if(y===L-1&&y>0)return{s:'warn',txt:'A una amarilla de suspensión'};
+  return null;
+}
+const susBadge=p=>{const c=cardState(p);return c?`<span class="sus ${c.s==='warn'?'warn':''}">${esc(c.txt)}</span>`:''};
+const cardCtl=(p,kind)=>{const v=kind==='yc'?yc(p):rc(p),lbl=kind==='yc'?'amarilla':'roja';
+  return `<td class="ctl"><span class="ccnt"><button class="step" type="button" data-act="${kind}-dec" data-id="${p.id}" aria-label="Quitar una tarjeta ${lbl} a ${esc(p.name)}" ${v?'':'disabled'}>−</button><span class="gnum"><span class="card-${kind==='yc'?'y':'r'}" aria-hidden="true"></span>${v}</span><button class="step" type="button" data-act="${kind}-inc" data-id="${p.id}" aria-label="Sumar una tarjeta ${lbl} a ${esc(p.name)}">+</button></span></td>`};
+function renderCards(){
+  const L=cardLimit(),li=$('#cardLimit');if(document.activeElement!==li)li.value=L;
+  $('#cardLimitTxt').textContent=RO?'Se avisa suspensión al llegar a '+plural(L,'amarilla','amarillas')+' o con una roja.':'';
+  const withC=S.scorers.filter(p=>yc(p)||rc(p));
+  const sus=S.scorers.filter(p=>cardState(p)&&cardState(p).s==='sus'),warn=S.scorers.filter(p=>cardState(p)&&cardState(p).s==='warn');
+  const box=$('#cardAlert');box.classList.toggle('on',!!sus.length);
+  const item=(p,btn)=>`<li><span><b>${p.num!=null?p.num+' · ':''}${esc(p.name)}</b> (${esc(nm(p.team))})${susBadge(p)}</span>${btn?`<button class="served" type="button" data-served="${p.id}">Marcar suspensión cumplida</button>`:''}</li>`;
+  box.innerHTML=!sus.length&&!warn.length?'<p style="margin:0;font-weight:500">No hay jugadores suspendidos ni en riesgo de suspensión.</p>'
+    :(sus.length?`<p>⚠️ ${plural(sus.length,'jugador debe','jugadores deben')} cumplir suspensión</p><ul>${sus.map(p=>item(p,true)).join('')}</ul>`:'')+
+     (warn.length?`<p style="margin-top:${sus.length?'10px':'0'}">${plural(warn.length,'jugador está','jugadores están')} a una amarilla de la suspensión</p><ul>${warn.map(p=>item(p,false)).join('')}</ul>`:'');
+  const T=S.teams.map((_,t)=>{const ps=S.scorers.filter(p=>p.team===t);const a=ps.reduce((s,p)=>s+yc(p),0),r=ps.reduce((s,p)=>s+rc(p),0);return{t,a,r,pts:a+3*r}})
+    .sort((x,y)=>x.pts-y.pts||x.r-y.r||nm(x.t).localeCompare(nm(y.t),'es'));
+  let pos=0,pk=null;
+  $('#cardTeams tbody').innerHTML=T.map((x,i)=>{if(x.pts!==pk){pos=i+1;pk=x.pts}
+    return `<tr class="${x.pts===0?'':x.r?'t':''}"><td>${pos}</td><td class="tn">${esc(nm(x.t))}</td><td>${x.a}</td><td>${x.r}</td><td class="pts">${x.pts}</td></tr>`}).join('');
+  const P=[...withC].sort((a,b)=>(cardState(b)?.s==='sus')-(cardState(a)?.s==='sus')||rc(b)-rc(a)||yc(b)-yc(a)||a.name.localeCompare(b.name,'es'));
+  $('#cardPlayers tbody').innerHTML=P.length?P.map(p=>{const c=cardState(p);
+    return `<tr class="${c&&c.s==='sus'?'t':''}"><td>${p.num??'–'}</td><td class="tn">${esc(p.name)}</td><td class="tn">${esc(nm(p.team))}</td><td>${yc(p)}</td><td>${rc(p)}</td><td class="tn">${c?susBadge(p):(p.ycBase||p.rcBase?'Suspensión cumplida':'Habilitado')}</td></tr>`}).join('')
+    :'<tr class="empty-row"><td colspan="6">Todavía no hay tarjetas. Anótelas en la planilla de cada equipo.</td></tr>';
+}
+$('#cardLimit').addEventListener('change',()=>{
+  if(RO)return;const v=Math.floor(+$('#cardLimit').value);
+  if(!(v>=1&&v<=10)){toast('Escriba un número de 1 a 10.');$('#cardLimit').value=cardLimit();return}
+  S.cardLimit=v;save();refresh();toast('Ahora se avisa al llegar a '+plural(v,'amarilla','amarillas')+'.');
+});
+$('#cardAlert').addEventListener('click',async e=>{
+  const b=e.target.closest('[data-served]');if(!b||RO)return;
+  const p=S.scorers.find(x=>x.id===b.dataset.served);if(!p)return;
+  if(!await askConfirm('¿'+p.name+' ya cumplió la suspensión?','Su conteo de tarjetas para suspensión vuelve a empezar. Las tarjetas recibidas se siguen viendo en el total.','Sí, ya la cumplió'))return;
+  p.ycBase=yc(p);p.rcBase=rc(p);save();refresh();toast(p.name+' queda habilitado para jugar.');
+});
 const goalCtl=p=>`<td class="ctl"><button class="step" type="button" data-act="dec" data-id="${p.id}" aria-label="Quitar un gol a ${esc(p.name)}" ${p.goals?'':'disabled'}>−</button><span class="gnum">${p.goals}</span><button class="step" type="button" data-act="inc" data-id="${p.id}" aria-label="Sumar un gol a ${esc(p.name)}">+</button></td>`;
 function renderRoster(){
   const order=teamOrder();if(rosterTeam==null)rosterTeam=order[0];
@@ -996,9 +1084,10 @@ function renderRoster(){
   const pl=S.scorers.filter(p=>p.team===rosterTeam).sort((a,b)=>(a.num??1000)-(b.num??1000)||a.name.localeCompare(b.name,'es'));
   $('#rosterTitle').textContent=nm(rosterTeam);
   const goals=pl.reduce((a,p)=>a+p.goals,0);
-  $('#rosterCount').textContent=(S.drawn?'Grupo '+groupOf(rosterTeam)+'. ':'')+plural(pl.length,'jugador','jugadores')+', '+plural(goals,'gol','goles');
-  $('#rosterTable tbody').innerHTML=pl.length?pl.map(p=>`<tr class="${p.goals>0?'q':''}"><td><input class="dorsal" type="number" min="0" max="99" inputmode="numeric" placeholder="–" value="${p.num??''}" data-id="${p.id}" aria-label="Número de ${esc(p.name)}"></td><td class="tn">${esc(p.name)}</td>${goalCtl(p)}<td><button class="del" type="button" data-act="del" data-id="${p.id}" aria-label="Quitar a ${esc(p.name)} de la planilla">×</button></td></tr>`).join('')
-    :'<tr class="empty-row"><td colspan="4">Este equipo aún no tiene jugadores. Agréguelos uno por uno o pegue la lista completa.</td></tr>';
+  const ty=pl.reduce((a,p)=>a+yc(p),0),tr=pl.reduce((a,p)=>a+rc(p),0);
+  $('#rosterCount').textContent=(S.drawn?'Grupo '+groupOf(rosterTeam)+'. ':'')+plural(pl.length,'jugador','jugadores')+', '+plural(goals,'gol','goles')+', '+plural(ty,'amarilla','amarillas')+', '+plural(tr,'roja','rojas');
+  $('#rosterTable tbody').innerHTML=pl.length?pl.map(p=>`<tr class="${p.goals>0?'q':''}"><td><input class="dorsal" type="number" min="0" max="99" inputmode="numeric" placeholder="–" value="${p.num??''}" data-id="${p.id}" aria-label="Número de ${esc(p.name)}"></td><td class="tn">${esc(p.name)}${susBadge(p)}</td>${goalCtl(p)}${cardCtl(p,'yc')}${cardCtl(p,'rc')}<td><button class="del" type="button" data-act="del" data-id="${p.id}" aria-label="Quitar a ${esc(p.name)} de la planilla">×</button></td></tr>`).join('')
+    :'<tr class="empty-row"><td colspan="6">Este equipo aún no tiene jugadores. Agréguelos uno por uno o pegue la lista completa.</td></tr>';
 }
 function tryAdd(team,num,name){
   if(S.scorers.some(p=>p.team===team&&p.name.toLowerCase()===name.toLowerCase()))return'dup';
@@ -1118,13 +1207,22 @@ $('#rosterTable').addEventListener('change',e=>{
 ['#rosterTable','#golTable'].forEach(sel=>$(sel).addEventListener('click',async e=>{
   const b=e.target.closest('button[data-act]');if(!b)return;
   const p=S.scorers.find(x=>x.id===b.dataset.id);if(!p)return;const act=b.dataset.act;
+  const before=cardState(p);
   if(act==='inc')p.goals++;
   else if(act==='dec')p.goals=Math.max(0,p.goals-1);
+  else if(act==='yc-inc')p.yc=yc(p)+1;
+  else if(act==='yc-dec'){p.yc=Math.max(0,yc(p)-1);p.ycBase=Math.min(p.ycBase||0,p.yc)}
+  else if(act==='rc-inc')p.rc=rc(p)+1;
+  else if(act==='rc-dec'){p.rc=Math.max(0,rc(p)-1);p.rcBase=Math.min(p.rcBase||0,p.rc)}
   else if(act==='del'){
-    if(!await askConfirm('¿Quitar a '+p.name+'?','Se borra de la planilla de '+nm(p.team)+(p.goals?' junto con sus '+plural(p.goals,'gol','goles'):'')+'.','Quitar jugador'))return;
+    const extra=[p.goals?plural(p.goals,'gol','goles'):'',yc(p)?plural(yc(p),'amarilla','amarillas'):'',rc(p)?plural(rc(p),'roja','rojas'):''].filter(Boolean);
+    if(!await askConfirm('¿Quitar a '+p.name+'?','Se borra de la planilla de '+nm(p.team)+(extra.length?' junto con sus '+extra.join(', '):'')+'.','Quitar jugador'))return;
     S.scorers=S.scorers.filter(x=>x!==p);save();refresh();return;
   }
   save();refresh();
+  const after=cardState(p);
+  if(after&&after.s==='sus'&&(!before||before.s!=='sus'))toast('⚠️ '+p.name+' ('+nm(p.team)+'): '+after.txt.toLowerCase()+'. Debe cumplir suspensión.');
+  else if(after&&after.s==='warn'&&!before)toast(p.name+' está a una amarilla de la suspensión.');
   const again=$(`${sel} button[data-act="${act}"][data-id="${p.id}"]`);
   (again&&!again.disabled?again:$(`${sel} button[data-act="inc"][data-id="${p.id}"]`))?.focus();
 }));
@@ -1341,7 +1439,7 @@ $('#reset').addEventListener('click',async()=>{
   if(drawing)return;
   if(S.fixed){
     if(!hasResults()){toast('No hay resultados para borrar.');return}
-    if(!await askConfirm('¿Borrar todos los resultados?','Se borran los marcadores de grupos y llaves y los goles de los goleadores. Los equipos, su orden y el calendario se mantienen.','Borrar resultados'))return;
+    if(!await askConfirm('¿Borrar todos los resultados?','Se borran los marcadores de grupos y llaves, los goles y las tarjetas. Los equipos, su orden, los jugadores y el calendario se mantienen.','Borrar resultados'))return;
     clearResults();save();rebuildAll();toast('Resultados borrados. Los equipos y su orden se mantienen.');return;
   }
   if(isLocked()){lockedMsg();return}
