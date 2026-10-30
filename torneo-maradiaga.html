@@ -175,9 +175,10 @@ input[type=text],input[type=number]{font:inherit;color:var(--ink);background:var
 .bulk .sub{margin:4px 0}
 .bulk code{font-family:var(--cond);font-weight:600;color:var(--ink)}
 .addp #pNum{text-align:center}
-.dorsal{width:46px;text-align:center;font:700 16px var(--cond);padding:5px 0;border-radius:6px;border:1.5px solid var(--line);background:var(--paper);color:var(--ink)}
+.dorsal{width:58px;text-align:center;font:700 16px var(--cond);padding:5px 0;border-radius:6px;border:1.5px solid var(--line);background:var(--paper);color:var(--ink)}
 .dorsal:placeholder-shown{border-style:dashed}
 .dorsal:focus{border-color:var(--marker)}
+.dorsal.dup{border-color:var(--amber)}
 .rtools{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px;margin:0 0 8px}
 .seg{display:inline-flex;border:1.5px solid var(--line);border-radius:8px;overflow:hidden}
 .seg button{font:600 13px var(--sans);padding:6px 11px;border:none;background:var(--paper);color:var(--muted);cursor:pointer}
@@ -528,7 +529,7 @@ footer{margin-top:48px;font-size:13px;color:var(--muted)}
     <div class="roster" role="tabpanel" aria-labelledby="rosterTitle">
       <div class="rhead"><h3 id="rosterTitle"></h3><span class="gs" id="rosterCount"></span></div>
       <div class="addp">
-        <input type="number" id="pNum" min="0" max="99" inputmode="numeric" placeholder="N.º" aria-label="Número del jugador">
+        <input type="text" id="pNum" maxlength="6" inputmode="tel" autocomplete="off" placeholder="N.º" aria-label="Número del jugador, por ejemplo 7 o 2+1">
         <input type="text" id="pName" maxlength="50" placeholder="Nombre del jugador" aria-label="Nombre del jugador" autocomplete="off">
         <button class="btn" id="pAdd" type="button">Agregar jugador</button>
       </div>
@@ -546,7 +547,7 @@ footer{margin-top:48px;font-size:13px;color:var(--muted)}
       <div class="salso" id="pSearchAlso" hidden></div>
       <div class="rtools">
         <span><span class="hint" style="margin-right:6px">Ordenar por</span><span class="seg" role="group" aria-label="Ordenar jugadores"><button type="button" data-sort="num">Número</button><button type="button" data-sort="name">Nombre</button><button type="button" data-sort="add">Como se agregaron</button></span></span>
-        <span class="hint">Toque el número de un jugador para cambiarlo; con Enter pasa al siguiente.</span>
+        <span class="hint">Toque el número de un jugador para cambiarlo; con Enter pasa al siguiente. Se puede repetir un número o escribir, por ejemplo, 2+1.</span>
         <button class="linkish" id="clearNums" type="button">Quitar todos los números</button>
       </div>
       <div class="tw"><table class="std" id="rosterTable">
@@ -1059,7 +1060,15 @@ function renderAwards(C){
     ?`<span class="ic" aria-hidden="true">🧤</span><div><div class="ln">${kt.map(s=>esc(kn(s.t)||'Portero de '+nm(s.t))).join(', ')}</div><div class="ld">${kt.length>1?'Empatados: ':''}${plural(kt[0].gc,'gol recibido','goles recibidos')} en ${plural(kt[0].pj,'partido','partidos')}${kt.length===1?', '+esc(nm(kt[0].t)):''}${final?'':' (va ganando)'}</div></div>`
     :'<div class="ld">Aparece aquí cuando haya partidos anotados.</div>';
 }
-const num0=v=>{const n=num(v);return n==null?null:Math.min(99,n)};
+// Número de camiseta: texto corto como 7, 23, 2+1 o 10A. Se permiten números repetidos.
+const NUM_RE=/^\d{1,3}(?:\+\d{1,3})?[A-Z]?$/;
+function normDorsal(v){if(v==null)return null;const t=String(v).trim().toUpperCase().replace(/^#/,'').replace(/\s+/g,'');return t===''?null:t}
+const okDorsal=t=>t==null||NUM_RE.test(t);
+const num0=v=>{const t=normDorsal(v);return t!=null&&okDorsal(t)?t:null};
+const dorsalKey=v=>{const t=normDorsal(v);if(t==null)return[1e6,''];const m=/^(\d+)(.*)$/.exec(t);return m?[+m[1],m[2]]:[1e5,t]};
+const cmpDorsal=(a,b)=>{const x=dorsalKey(a),y=dorsalKey(b);return x[0]-y[0]||x[1].localeCompare(y[1])};
+const sameDorsal=(a,b)=>a!=null&&b!=null&&normDorsal(a)===normDorsal(b);
+const dupNum=p=>p.num!=null&&S.scorers.some(x=>x!==p&&x.team===p.team&&sameDorsal(x.num,p.num));
 let rosterTeam=null;
 const teamOrder=()=>S.drawn?LETTERS.flatMap(L=>S.groups[L]):[...S.teams.keys()];
 /* ---------- tarjetas ---------- */
@@ -1115,11 +1124,11 @@ function unfreeze(){if(frozen){frozen=null;renderRoster()}}
 /* ---------- búsqueda de jugadores ---------- */
 function pQuery(){
   const raw=($('#pSearch')&&$('#pSearch').value||'').trim();if(!raw)return null;
-  const num=/^#?\d{1,2}$/.test(raw)?+raw.replace('#',''):null;
+  const t=normDorsal(raw),num=t!=null&&NUM_RE.test(t)?t:null;
   return{raw,num,words:normTxt(raw).split(' ').filter(Boolean)};
 }
 function pMatch(p,q){
-  if(q.num!=null&&p.num===q.num)return true;
+  if(q.num!=null&&p.num!=null){const d=normDorsal(p.num);if(d===q.num||d.startsWith(q.num+'+'))return true}
   const n=normTxt(p.name);return q.words.every(w=>n.includes(w));
 }
 function hl(name,q){
@@ -1137,7 +1146,7 @@ function renderRoster(){
   const cnt=t=>S.scorers.filter(p=>p.team===t).length;
   $('#rosterChips').innerHTML=order.map(t=>`<button class="chip" type="button" role="tab" data-team="${t}" aria-selected="${t===rosterTeam}" tabindex="${t===rosterTeam?0:-1}" aria-label="${esc(nm(t))}, ${plural(cnt(t),'jugador','jugadores')}">${S.drawn?`<span class="cc" style="margin:0 6px 0 0">${groupOf(t)}</span>`:''}${esc(nm(t))}<span class="cc">${cnt(t)}</span></button>`).join('');
   const idx=new Map(S.scorers.map((p,i)=>[p,i]));
-  const sorter={num:(a,b)=>(a.num??1000)-(b.num??1000)||a.name.localeCompare(b.name,'es'),
+  const sorter={num:(a,b)=>cmpDorsal(a.num,b.num)||a.name.localeCompare(b.name,'es'),
     name:(a,b)=>a.name.localeCompare(b.name,'es'),add:(a,b)=>idx.get(a)-idx.get(b)}[rosterSort]||((a,b)=>0);
   let pl=S.scorers.filter(p=>p.team===rosterTeam).sort(sorter);
   if(frozen&&frozen.team===rosterTeam){const pos=new Map(frozen.ids.map((id,i)=>[id,i]));pl.sort((a,b)=>(pos.get(a.id)??1e9)-(pos.get(b.id)??1e9))}
@@ -1157,16 +1166,16 @@ function renderRoster(){
     also.innerHTML=ks.length?'<span>'+(shown.length?'También en:':'Se encontró en:')+'</span>'+ks.map(t=>`<button type="button" data-goteam="${t}">${esc(nm(t))} (${others[t]})</button>`).join(''):'';
   }else{also.hidden=true;also.innerHTML=''}
   if(pl.length&&!shown.length){$('#rosterTable tbody').innerHTML=`<tr class="empty-row"><td colspan="6">Ningún jugador de ${esc(nm(rosterTeam))} coincide con “${esc(q.raw)}”.</td></tr>`;return}
-  $('#rosterTable tbody').innerHTML=pl.length?shown.map(p=>`<tr class="${p.goals>0?'q':''}"><td><input class="dorsal" type="number" min="0" max="99" inputmode="numeric" placeholder="–" value="${p.num??''}" data-id="${p.id}" aria-label="Número de ${esc(p.name)}"></td><td class="tn" title="${esc(p.name)}">${hl(p.name,q)}${susBadge(p)}</td>${goalCtl(p)}${cardCtl(p,'yc')}${cardCtl(p,'rc')}<td><button class="del" type="button" data-act="del" data-id="${p.id}" aria-label="Quitar a ${esc(p.name)} de la planilla">×</button></td></tr>`).join('')
+  $('#rosterTable tbody').innerHTML=pl.length?shown.map(p=>`<tr class="${p.goals>0?'q':''}"><td><input class="dorsal${dupNum(p)?' dup':''}" type="text" maxlength="6" inputmode="tel" autocomplete="off" placeholder="–" value="${esc(p.num??'')}" title="${dupNum(p)?'Otro jugador del equipo tiene este mismo número':''}" data-id="${p.id}" aria-label="Número de ${esc(p.name)}"></td><td class="tn" title="${esc(p.name)}">${hl(p.name,q)}${susBadge(p)}</td>${goalCtl(p)}${cardCtl(p,'yc')}${cardCtl(p,'rc')}<td><button class="del" type="button" data-act="del" data-id="${p.id}" aria-label="Quitar a ${esc(p.name)} de la planilla">×</button></td></tr>`).join('')
     :'<tr class="empty-row"><td colspan="6">Este equipo aún no tiene jugadores. Agréguelos uno por uno o pegue la lista completa.</td></tr>';
 }
 function tryAdd(team,num,name){
   if(S.scorers.some(p=>p.team===team&&p.name.toLowerCase()===name.toLowerCase()))return'dup';
-  if(num!=null&&S.scorers.some(p=>p.team===team&&p.num===num))return'num';
   S.scorers.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,7),num,name,team,goals:0});return'ok';
 }
 function addScorer(){
   const n=$('#pName'),numEl=$('#pNum'),name=n.value.trim(),num=num0(numEl.value);
+  if(normDorsal(numEl.value)!=null&&num==null){toast('Escriba un número como 7, 23 o 2+1.');numEl.focus();return}
   if(!name){toast('Escriba el nombre del jugador.');n.focus();return}
   const r=tryAdd(rosterTeam,num,name);
   if(r==='dup'){toast(name+' ya está en '+nm(rosterTeam)+'.');return}
@@ -1178,7 +1187,7 @@ $('#pName').addEventListener('keydown',e=>{if(e.key==='Enter')addScorer()});
 $('#pNum').addEventListener('keydown',e=>{if(e.key==='Enter')$('#pName').focus()});
 const normTxt=v=>String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
 function findTeam(v){const n=normTxt(v);if(!n)return null;const i=S.teams.findIndex((_,t)=>normTxt(nm(t))===n);return i>=0?i:null}
-const isNumCell=x=>/^#?\d{1,3}$/.test(String(x).trim());
+const isNumCell=x=>NUM_RE.test(normDorsal(x)||'-');
 const HEADER=/^(equipo|n|no|nro|num|numero|n\.?º|#|dorsal|camiseta|jugador|jugadores|nombre|nombres|nombre del jugador)$/;
 function cellsToRow(c){
   c=c.map(x=>String(x??'').trim()).filter(Boolean);const r={};
@@ -1190,7 +1199,7 @@ function cellsToRow(c){
 function parsePaste(text){
   return text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean).flatMap(l=>{
     if(/\t|;/.test(l)){const c=l.split(/\t|;/).map(x=>x.trim());if(c.filter(Boolean).every(x=>HEADER.test(normTxt(x))))return[];return[cellsToRow(c)]}
-    const m=l.match(/^#?(\d{1,3})\s*[.\-–)]?\s+(.+)$/);return[{num:m?m[1]:null,name:m?m[2]:l}];
+    const m=l.match(/^#?(\d{1,3}(?:\s*\+\s*\d{1,3})?[A-Za-z]?)\s*[.\-–)]?\s+(.+)$/);return[{num:m?m[1]:null,name:m?m[2]:l}];
   });
 }
 function sheetRows(aoa){
@@ -1210,7 +1219,7 @@ function importRows(rows){
     const name=String(r.name??'').replace(/\s+/g,' ').trim();if(!name)return;
     let team=rosterTeam;
     if(r.team!=null&&String(r.team).trim()!==''){const t=findTeam(r.team);if(t==null){const k=String(r.team).trim();unknown[k]=(unknown[k]||0)+1;return}team=t}
-    const raw=String(r.num??'').replace(/[^\d]/g,''),n=raw===''?null:num0(raw);
+    const n=num0(r.num);
     const res=tryAdd(team,n,name);
     if(res==='ok'){ok++;added[team]=(added[team]||0)+1}
     else skip.push(name+' ('+nm(team)+'): '+(res==='num'?'el número '+n+' ya lo usa otro jugador':'ya estaba registrado'));
@@ -1274,22 +1283,16 @@ $('#rosterChips').addEventListener('keydown',e=>{
 });
 async function setNumber(i){
   const p=S.scorers.find(x=>x.id===i.dataset.id);if(!p)return false;
-  const raw=i.value.trim();
-  if(raw!==''&&!/^\d{1,2}$/.test(raw)){toast('El número debe ser de 0 a 99.');i.value=p.num??'';return false}
-  const n=raw===''?null:+raw;if(n===p.num)return true;
-  const other=n!=null&&S.scorers.find(x=>x!==p&&x.team===p.team&&x.num===n);
+  const t=normDorsal(i.value);
+  if(!okDorsal(t)){toast('Escriba un número como 7, 23 o 2+1.');i.value=p.num??'';return false}
+  if(sameDorsal(t,p.num)||(t==null&&p.num==null)){i.value=t??'';return true}
   frozen={team:rosterTeam,ids:shownIds()};
-  if(other){
-    const ok=await askConfirm('El número '+n+' ya lo tiene '+other.name,
-      p.num!=null?'¿Intercambiar los números? '+p.name+' queda con el '+n+' y '+other.name+' con el '+p.num+'.':'¿Pasar el número a '+p.name+'? '+other.name+' quedará sin número para que le asigne otro.',
-      p.num!=null?'Intercambiar números':'Pasar el número');
-    if(!ok){i.value=p.num??'';return false}
-    other.num=p.num;
-  }
-  p.num=n;save();refresh();
+  p.num=t;save();refresh();
   const row=document.querySelector(`#rosterTable input.dorsal[data-id="${p.id}"]`)?.closest('tr');
   if(row){row.classList.remove('justnum');void row.offsetWidth;row.classList.add('justnum')}
-  if(other)toast('Números intercambiados.');
+  const others=t==null?[]:S.scorers.filter(x=>x!==p&&x.team===p.team&&sameDorsal(x.num,t));
+  setTimeout(()=>{if(numBusy||!$('#modal').hidden)return;const a=document.activeElement;if(!(a&&a.closest&&a.closest('#rosterTable')))unfreeze()},200);
+  if(others.length)toast('Listo. '+others.map(x=>x.name).join(' y ')+(others.length>1?' también tienen':' también tiene')+' el número '+t+'.');
   return true;
 }
 let numBusy=false;
