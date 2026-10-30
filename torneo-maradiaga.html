@@ -158,6 +158,17 @@ input[type=text],input[type=number]{font:inherit;color:var(--ink);background:var
 .roster{background:var(--paper);border:1.5px solid var(--line);border-radius:10px;padding:16px;max-width:780px}
 .rhead{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 12px;margin-bottom:10px}
 .rhead h3{margin:0;font:700 28px/1.1 var(--hand);color:var(--marker)}
+.psearch{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:14px 0 6px}
+.psearch .sbox{position:relative;flex:1;min-width:220px}
+.psearch input{width:100%;font:inherit;font-size:15px;color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:6px;padding:9px 34px 9px 34px}
+.psearch .sic{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none;font-size:14px}
+.psearch .sx{position:absolute;right:4px;top:50%;transform:translateY(-50%);border:none;background:none;color:var(--muted);font-size:18px;cursor:pointer;padding:2px 8px;border-radius:4px}
+.psearch .sx[hidden]{display:none}
+.psearch .scount{font-size:14px;color:var(--muted)}
+.salso{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:14px;color:var(--muted);margin:0 0 8px}
+.salso[hidden]{display:none}
+.salso button{font:600 13px var(--sans);padding:4px 10px;border-radius:999px;border:1.5px solid var(--marker);background:transparent;color:var(--marker);cursor:pointer}
+#rosterTable mark{background:var(--amber-bg);color:inherit;border-radius:2px;padding:0 1px}
 .bulk{margin:0 0 12px}
 .bulk summary{cursor:pointer;font-weight:600;color:var(--marker);padding:4px 0}
 .bulk textarea{width:100%;font:inherit;font-size:15px;color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:6px;padding:8px 10px;margin:4px 0 8px;resize:vertical}
@@ -518,6 +529,11 @@ footer{margin-top:48px;font-size:13px;color:var(--muted)}
         <button class="btn" id="bulkAdd" type="button">Agregar todos a este equipo</button>
         <div class="iresult" id="bulkResult" aria-live="polite" hidden></div>
       </details>
+      <div class="psearch" role="search">
+        <div class="sbox"><span class="sic" aria-hidden="true">🔍</span><input type="search" id="pSearch" placeholder="Buscar jugador por nombre o número" aria-label="Buscar jugador por nombre o número" autocomplete="off" spellcheck="false"><button class="sx" id="pSearchX" type="button" aria-label="Borrar búsqueda" hidden>×</button></div>
+        <span class="scount" id="pSearchCount" aria-live="polite"></span>
+      </div>
+      <div class="salso" id="pSearchAlso" hidden></div>
       <div class="tw"><table class="std" id="rosterTable">
         <thead><tr><th title="Número de camiseta">N.º</th><th class="tn">Jugador</th><th>Goles</th><th title="Tarjetas amarillas"><span class="card-y" aria-hidden="true"></span>Amarillas</th><th title="Tarjetas rojas"><span class="card-r" aria-hidden="true"></span>Rojas</th><th><span style="position:absolute;left:-9999px">Quitar</span></th></tr></thead>
         <tbody></tbody>
@@ -1077,6 +1093,26 @@ $('#cardAlert').addEventListener('click',async e=>{
   p.ycBase=yc(p);p.rcBase=rc(p);save();refresh();toast(p.name+' queda habilitado para jugar.');
 });
 const goalCtl=p=>`<td class="ctl"><button class="step" type="button" data-act="dec" data-id="${p.id}" aria-label="Quitar un gol a ${esc(p.name)}" ${p.goals?'':'disabled'}>−</button><span class="gnum">${p.goals}</span><button class="step" type="button" data-act="inc" data-id="${p.id}" aria-label="Sumar un gol a ${esc(p.name)}">+</button></td>`;
+/* ---------- búsqueda de jugadores ---------- */
+function pQuery(){
+  const raw=($('#pSearch')&&$('#pSearch').value||'').trim();if(!raw)return null;
+  const num=/^#?\d{1,2}$/.test(raw)?+raw.replace('#',''):null;
+  return{raw,num,words:normTxt(raw).split(' ').filter(Boolean)};
+}
+function pMatch(p,q){
+  if(q.num!=null&&p.num===q.num)return true;
+  const n=normTxt(p.name);return q.words.every(w=>n.includes(w));
+}
+function hl(name,q){
+  if(!q||q.num!=null&&!q.words.some(w=>/\D/.test(w)))return esc(name);
+  const base=String(name),norm=base.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+  if(norm.length!==base.length)return esc(name);
+  const marks=new Array(base.length).fill(false);
+  q.words.forEach(w=>{let i=norm.indexOf(w);while(i>=0){for(let k=i;k<i+w.length;k++)marks[k]=true;i=norm.indexOf(w,i+w.length)}});
+  let out='',open=false;
+  for(let i=0;i<base.length;i++){if(marks[i]&&!open){out+='<mark>';open=true}if(!marks[i]&&open){out+='</mark>';open=false}out+=esc(base[i])}
+  return out+(open?'</mark>':'');
+}
 function renderRoster(){
   const order=teamOrder();if(rosterTeam==null)rosterTeam=order[0];
   const cnt=t=>S.scorers.filter(p=>p.team===t).length;
@@ -1086,7 +1122,17 @@ function renderRoster(){
   const goals=pl.reduce((a,p)=>a+p.goals,0);
   const ty=pl.reduce((a,p)=>a+yc(p),0),tr=pl.reduce((a,p)=>a+rc(p),0);
   $('#rosterCount').textContent=(S.drawn?'Grupo '+groupOf(rosterTeam)+'. ':'')+plural(pl.length,'jugador','jugadores')+', '+plural(goals,'gol','goles')+', '+plural(ty,'amarilla','amarillas')+', '+plural(tr,'roja','rojas');
-  $('#rosterTable tbody').innerHTML=pl.length?pl.map(p=>`<tr class="${p.goals>0?'q':''}"><td><input class="dorsal" type="number" min="0" max="99" inputmode="numeric" placeholder="–" value="${p.num??''}" data-id="${p.id}" aria-label="Número de ${esc(p.name)}"></td><td class="tn">${esc(p.name)}${susBadge(p)}</td>${goalCtl(p)}${cardCtl(p,'yc')}${cardCtl(p,'rc')}<td><button class="del" type="button" data-act="del" data-id="${p.id}" aria-label="Quitar a ${esc(p.name)} de la planilla">×</button></td></tr>`).join('')
+  const q=pQuery(),shown=q?pl.filter(p=>pMatch(p,q)):pl;
+  $('#pSearchX').hidden=!q;
+  $('#pSearchCount').textContent=q?(shown.length?shown.length+' de '+plural(pl.length,'jugador','jugadores'):'Sin resultados en '+nm(rosterTeam)):'';
+  const also=$('#pSearchAlso');
+  if(q){const others={};S.scorers.forEach(p=>{if(p.team!==rosterTeam&&pMatch(p,q))others[p.team]=(others[p.team]||0)+1});
+    const ks=Object.keys(others).map(Number).sort((a,b)=>teamOrder().indexOf(a)-teamOrder().indexOf(b));
+    also.hidden=!ks.length;
+    also.innerHTML=ks.length?'<span>'+(shown.length?'También en:':'Se encontró en:')+'</span>'+ks.map(t=>`<button type="button" data-goteam="${t}">${esc(nm(t))} (${others[t]})</button>`).join(''):'';
+  }else{also.hidden=true;also.innerHTML=''}
+  if(pl.length&&!shown.length){$('#rosterTable tbody').innerHTML=`<tr class="empty-row"><td colspan="6">Ningún jugador de ${esc(nm(rosterTeam))} coincide con “${esc(q.raw)}”.</td></tr>`;return}
+  $('#rosterTable tbody').innerHTML=pl.length?shown.map(p=>`<tr class="${p.goals>0?'q':''}"><td><input class="dorsal" type="number" min="0" max="99" inputmode="numeric" placeholder="–" value="${p.num??''}" data-id="${p.id}" aria-label="Número de ${esc(p.name)}"></td><td class="tn" title="${esc(p.name)}">${hl(p.name,q)}${susBadge(p)}</td>${goalCtl(p)}${cardCtl(p,'yc')}${cardCtl(p,'rc')}<td><button class="del" type="button" data-act="del" data-id="${p.id}" aria-label="Quitar a ${esc(p.name)} de la planilla">×</button></td></tr>`).join('')
     :'<tr class="empty-row"><td colspan="6">Este equipo aún no tiene jugadores. Agréguelos uno por uno o pegue la lista completa.</td></tr>';
 }
 function tryAdd(team,num,name){
@@ -1187,6 +1233,10 @@ $('#xlsTpl').addEventListener('click',()=>{
   const ws=XLSX.utils.aoa_to_sheet(rows);ws['!cols']=[{wch:28},{wch:9},{wch:34}];
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Jugadores');XLSX.writeFile(wb,'plantilla_jugadores.xlsx');
 });
+$('#pSearch').addEventListener('input',()=>renderRoster());
+$('#pSearch').addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#pSearch').value){e.preventDefault();$('#pSearch').value='';renderRoster()}});
+$('#pSearchX').addEventListener('click',()=>{$('#pSearch').value='';renderRoster();$('#pSearch').focus()});
+$('#pSearchAlso').addEventListener('click',e=>{const b=e.target.closest('[data-goteam]');if(!b)return;rosterTeam=+b.dataset.goteam;refresh();$('#pSearch').focus()});
 $('#rosterChips').addEventListener('click',e=>{
   const c=e.target.closest('.chip');if(!c)return;rosterTeam=+c.dataset.team;refresh();
   $(`#rosterChips .chip[data-team="${rosterTeam}"]`)?.focus();
