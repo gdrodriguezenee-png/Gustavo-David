@@ -177,6 +177,16 @@ input[type=text],input[type=number]{font:inherit;color:var(--ink);background:var
 .addp #pNum{text-align:center}
 .dorsal{width:46px;text-align:center;font:700 16px var(--cond);padding:5px 0;border-radius:6px;border:1.5px solid var(--line);background:var(--paper);color:var(--ink)}
 .dorsal:placeholder-shown{border-style:dashed}
+.dorsal:focus{border-color:var(--marker)}
+.rtools{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px;margin:0 0 8px}
+.seg{display:inline-flex;border:1.5px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{font:600 13px var(--sans);padding:6px 11px;border:none;background:var(--paper);color:var(--muted);cursor:pointer}
+.seg button+button{border-left:1.5px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--marker);color:var(--on-marker)}
+.rtools .hint{font-size:13px;color:var(--muted)}
+.linkish{font:600 13px var(--sans);background:none;border:none;color:var(--danger);text-decoration:underline;cursor:pointer;padding:4px}
+body.ro #clearNums,body.ro .rtools .hint{display:none}
+tr.justnum td{animation:land 1.2s ease-out}
 .ldn{font:700 13px var(--cond);color:var(--marker);border:1.5px solid var(--marker);border-radius:5px;padding:0 5px;margin-right:6px;vertical-align:3px}
 .addp input,.addp select{font:inherit;font-size:15px;color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:6px;padding:8px 10px;min-width:0}
 .addp .btn{padding:9px 14px}
@@ -534,6 +544,11 @@ footer{margin-top:48px;font-size:13px;color:var(--muted)}
         <span class="scount" id="pSearchCount" aria-live="polite"></span>
       </div>
       <div class="salso" id="pSearchAlso" hidden></div>
+      <div class="rtools">
+        <span><span class="hint" style="margin-right:6px">Ordenar por</span><span class="seg" role="group" aria-label="Ordenar jugadores"><button type="button" data-sort="num">Número</button><button type="button" data-sort="name">Nombre</button><button type="button" data-sort="add">Como se agregaron</button></span></span>
+        <span class="hint">Toque el número de un jugador para cambiarlo; con Enter pasa al siguiente.</span>
+        <button class="linkish" id="clearNums" type="button">Quitar todos los números</button>
+      </div>
       <div class="tw"><table class="std" id="rosterTable">
         <thead><tr><th title="Número de camiseta">N.º</th><th class="tn">Jugador</th><th>Goles</th><th title="Tarjetas amarillas"><span class="card-y" aria-hidden="true"></span>Amarillas</th><th title="Tarjetas rojas"><span class="card-r" aria-hidden="true"></span>Rojas</th><th><span style="position:absolute;left:-9999px">Quitar</span></th></tr></thead>
         <tbody></tbody>
@@ -1093,6 +1108,10 @@ $('#cardAlert').addEventListener('click',async e=>{
   p.ycBase=yc(p);p.rcBase=rc(p);save();refresh();toast(p.name+' queda habilitado para jugar.');
 });
 const goalCtl=p=>`<td class="ctl"><button class="step" type="button" data-act="dec" data-id="${p.id}" aria-label="Quitar un gol a ${esc(p.name)}" ${p.goals?'':'disabled'}>−</button><span class="gnum">${p.goals}</span><button class="step" type="button" data-act="inc" data-id="${p.id}" aria-label="Sumar un gol a ${esc(p.name)}">+</button></td>`;
+/* ---------- orden y números de la planilla ---------- */
+let rosterSort=ls.get('torneo-lemg-orden')||'num',frozen=null;
+const shownIds=()=>[...document.querySelectorAll('#rosterTable input.dorsal')].map(i=>i.dataset.id);
+function unfreeze(){if(frozen){frozen=null;renderRoster()}}
 /* ---------- búsqueda de jugadores ---------- */
 function pQuery(){
   const raw=($('#pSearch')&&$('#pSearch').value||'').trim();if(!raw)return null;
@@ -1117,7 +1136,13 @@ function renderRoster(){
   const order=teamOrder();if(rosterTeam==null)rosterTeam=order[0];
   const cnt=t=>S.scorers.filter(p=>p.team===t).length;
   $('#rosterChips').innerHTML=order.map(t=>`<button class="chip" type="button" role="tab" data-team="${t}" aria-selected="${t===rosterTeam}" tabindex="${t===rosterTeam?0:-1}" aria-label="${esc(nm(t))}, ${plural(cnt(t),'jugador','jugadores')}">${S.drawn?`<span class="cc" style="margin:0 6px 0 0">${groupOf(t)}</span>`:''}${esc(nm(t))}<span class="cc">${cnt(t)}</span></button>`).join('');
-  const pl=S.scorers.filter(p=>p.team===rosterTeam).sort((a,b)=>(a.num??1000)-(b.num??1000)||a.name.localeCompare(b.name,'es'));
+  const idx=new Map(S.scorers.map((p,i)=>[p,i]));
+  const sorter={num:(a,b)=>(a.num??1000)-(b.num??1000)||a.name.localeCompare(b.name,'es'),
+    name:(a,b)=>a.name.localeCompare(b.name,'es'),add:(a,b)=>idx.get(a)-idx.get(b)}[rosterSort]||((a,b)=>0);
+  let pl=S.scorers.filter(p=>p.team===rosterTeam).sort(sorter);
+  if(frozen&&frozen.team===rosterTeam){const pos=new Map(frozen.ids.map((id,i)=>[id,i]));pl.sort((a,b)=>(pos.get(a.id)??1e9)-(pos.get(b.id)??1e9))}
+  $$('.seg [data-sort]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.sort===rosterSort)));
+  $('#clearNums').hidden=!pl.some(p=>p.num!=null);
   $('#rosterTitle').textContent=nm(rosterTeam);
   const goals=pl.reduce((a,p)=>a+p.goals,0);
   const ty=pl.reduce((a,p)=>a+yc(p),0),tr=pl.reduce((a,p)=>a+rc(p),0);
@@ -1233,7 +1258,7 @@ $('#xlsTpl').addEventListener('click',()=>{
   const ws=XLSX.utils.aoa_to_sheet(rows);ws['!cols']=[{wch:28},{wch:9},{wch:34}];
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Jugadores');XLSX.writeFile(wb,'plantilla_jugadores.xlsx');
 });
-$('#pSearch').addEventListener('input',()=>renderRoster());
+$('#pSearch').addEventListener('input',()=>{frozen=null;renderRoster()});
 $('#pSearch').addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#pSearch').value){e.preventDefault();$('#pSearch').value='';renderRoster()}});
 $('#pSearchX').addEventListener('click',()=>{$('#pSearch').value='';renderRoster();$('#pSearch').focus()});
 $('#pSearchAlso').addEventListener('click',e=>{const b=e.target.closest('[data-goteam]');if(!b)return;rosterTeam=+b.dataset.goteam;refresh();$('#pSearch').focus()});
@@ -1247,12 +1272,50 @@ $('#rosterChips').addEventListener('keydown',e=>{
   rosterTeam=e.key==='Home'?o[0]:e.key==='End'?o[o.length-1]:o[(i+(e.key==='ArrowRight'?1:o.length-1))%o.length];
   refresh();$(`#rosterChips .chip[data-team="${rosterTeam}"]`)?.focus();
 });
-$('#rosterTable').addEventListener('change',e=>{
-  const i=e.target.closest('input.dorsal');if(!i)return;
-  const p=S.scorers.find(x=>x.id===i.dataset.id);if(!p)return;
-  const n=num0(i.value);
-  if(n!=null&&S.scorers.some(x=>x!==p&&x.team===p.team&&x.num===n)){toast('El número '+n+' ya está usado en '+nm(p.team)+'.');i.value=p.num??'';return}
+async function setNumber(i){
+  const p=S.scorers.find(x=>x.id===i.dataset.id);if(!p)return false;
+  const raw=i.value.trim();
+  if(raw!==''&&!/^\d{1,2}$/.test(raw)){toast('El número debe ser de 0 a 99.');i.value=p.num??'';return false}
+  const n=raw===''?null:+raw;if(n===p.num)return true;
+  const other=n!=null&&S.scorers.find(x=>x!==p&&x.team===p.team&&x.num===n);
+  frozen={team:rosterTeam,ids:shownIds()};
+  if(other){
+    const ok=await askConfirm('El número '+n+' ya lo tiene '+other.name,
+      p.num!=null?'¿Intercambiar los números? '+p.name+' queda con el '+n+' y '+other.name+' con el '+p.num+'.':'¿Pasar el número a '+p.name+'? '+other.name+' quedará sin número para que le asigne otro.',
+      p.num!=null?'Intercambiar números':'Pasar el número');
+    if(!ok){i.value=p.num??'';return false}
+    other.num=p.num;
+  }
   p.num=n;save();refresh();
+  const row=document.querySelector(`#rosterTable input.dorsal[data-id="${p.id}"]`)?.closest('tr');
+  if(row){row.classList.remove('justnum');void row.offsetWidth;row.classList.add('justnum')}
+  if(other)toast('Números intercambiados.');
+  return true;
+}
+let numBusy=false;
+$('#rosterTable').addEventListener('change',async e=>{
+  const i=e.target.closest('input.dorsal');if(!i||numBusy)return;numBusy=true;await setNumber(i);numBusy=false;
+});
+$('#rosterTable').addEventListener('keydown',async e=>{
+  const i=e.target.closest('input.dorsal');if(!i||(e.key!=='Enter'&&e.key!=='ArrowDown'&&e.key!=='ArrowUp'))return;
+  e.preventDefault();
+  const ids=shownIds(),k=ids.indexOf(i.dataset.id),nextId=ids[k+(e.key==='ArrowUp'?-1:1)];
+  if(!numBusy){numBusy=true;frozen={team:rosterTeam,ids};await setNumber(i);numBusy=false}
+  const nx=nextId&&document.querySelector(`#rosterTable input.dorsal[data-id="${nextId}"]`);
+  if(nx){nx.focus();nx.select()}else i.blur();
+});
+$('#rosterTable').addEventListener('focusin',e=>{const i=e.target.closest('input.dorsal');if(i)setTimeout(()=>i.select(),0)});
+$('#rosterTable').addEventListener('focusout',()=>{setTimeout(()=>{
+  if(numBusy||!$('#modal').hidden)return;
+  const a=document.activeElement;if(!(a&&a.closest&&a.closest('#rosterTable')))unfreeze();
+},150)});
+$$('.seg [data-sort]').forEach(b=>b.addEventListener('click',()=>{rosterSort=b.dataset.sort;ls.set('torneo-lemg-orden',rosterSort);frozen=null;renderRoster()}));
+$('#clearNums').addEventListener('click',async()=>{
+  const ps=S.scorers.filter(p=>p.team===rosterTeam&&p.num!=null);if(!ps.length)return;
+  if(!await askConfirm('¿Quitar los números de '+nm(rosterTeam)+'?','Los '+plural(ps.length,'jugador','jugadores')+' quedan sin número para que les asigne el de su camiseta. Goles y tarjetas no cambian.','Quitar números'))return;
+  ps.forEach(p=>p.num=null);frozen=null;save();refresh();
+  const first=document.querySelector('#rosterTable input.dorsal');if(first)first.focus();
+  toast('Números quitados. Escriba el número de cada jugador y presione Enter para pasar al siguiente.');
 });
 ['#rosterTable','#golTable'].forEach(sel=>$(sel).addEventListener('click',async e=>{
   const b=e.target.closest('button[data-act]');if(!b)return;
