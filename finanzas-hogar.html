@@ -546,7 +546,7 @@
     </div>
 
     <div class="card">
-      <h2>Lo que debo de esta cosecha</h2>
+      <h2>Deudas y compras <span class="hint">lo que marques pagado se suma a los gastos</span></h2>
       <div class="formgrid" style="margin-bottom:12px">
         <div><label>A quién</label><input id="mzdPers" placeholder="Ej. Lester"></div>
         <div><label>Por qué</label><input id="mzdConc" placeholder="Ej. Préstamo"></div>
@@ -588,6 +588,7 @@
         <tbody></tbody>
       </table>
     </div>
+    <div id="mzGasTot" style="margin-top:16px"></div>
     <div class="row" style="margin-top:14px">
       <button class="btn ghost sm" id="mzCsv">Descargar esta cosecha (.csv)</button>
     </div>
@@ -1511,15 +1512,17 @@ function mzTot(cid){
   const gs = M.gastos.filter(g=>g.cos===cid);
   const vs = M.ventas.filter(v=>v.cos===cid);
   const ds = M.deudas.filter(d=>d.cos===cid);
-  const gasto  = r2(gs.reduce((a,g)=>a+Number(g.monto||0),0));
+  const gastoAnot = r2(gs.reduce((a,g)=>a+Number(g.monto||0),0));
   const fiado  = r2(gs.filter(g=>!g.pagado).reduce((a,g)=>a+Number(g.monto||0),0));
-  const pagado = r2(gasto-fiado);
+  const pagado = r2(gastoAnot-fiado);
   const venta  = r2(vs.reduce((a,v)=>a+Number(v.monto||0),0));
   const qq     = r2(vs.reduce((a,v)=>a+Number(v.qq||0),0));
   const dPend  = r2(ds.filter(d=>!d.pagada).reduce((a,d)=>a+Number(d.monto||0),0));
   const dPag   = r2(ds.filter(d=>d.pagada).reduce((a,d)=>a+Number(d.monto||0),0));
   const capital= r2(Number(c.capital||0));
-  return {cos:c, gs, vs, ds, capital, gasto, pagado, fiado, venta, qq, dPend, dPag,
+  /* el total de gastos = lo anotado en la tabla + las deudas y compras ya pagadas */
+  const gasto  = r2(gastoAnot + dPag);
+  return {cos:c, gs, vs, ds, capital, gasto, gastoAnot, pagado, fiado, venta, qq, dPend, dPag,
     nFiados: gs.filter(g=>!g.pagado).length,
     nDeudas: ds.filter(d=>!d.pagada).length,
     debo:     r2(dPend+fiado),
@@ -1561,13 +1564,15 @@ function renderMaiz(){
     $("#mzTblGas").querySelector("tbody").innerHTML = '<tr><td colspan="6" class="empty">Sin cosecha activa.</td></tr>';
     $("#mzTblVen").querySelector("tbody").innerHTML = '<tr><td colspan="6" class="empty">Sin cosecha activa.</td></tr>';
     $("#mzgCount").textContent = ""; $("#mzCatHint").textContent = ""; $("#mzvPrev").textContent = "";
+    $("#mzGasTot").innerHTML = "";
     mzRenderComparar();
     return;
   }
 
   $("#mzkGas").textContent  = fmt(T.gasto);
-  $("#mzkGasF").textContent = T.gs.length
-    ? T.gs.length+" gasto(s) · pagado "+fmt(T.pagado)+(T.fiado>0?" · fiado "+fmt(T.fiado):"")
+  $("#mzkGasF").textContent = (T.gs.length || T.dPag>0)
+    ? fmt(T.gastoAnot)+" anotados"+(T.dPag>0 ? " + "+fmt(T.dPag)+" de deudas pagadas" : "")
+      +(T.fiado>0 ? " · fiado "+fmt(T.fiado) : "")
     : "Aún no has anotado gastos";
 
   const ke = $("#mzkEfe");
@@ -1607,6 +1612,7 @@ function renderMaiz(){
   /* ---- gasto por categoría ---- */
   const porCat = {};
   T.gs.forEach(g=>{ porCat[g.cat] = (porCat[g.cat]||0) + Number(g.monto||0); });
+  if(T.dPag>0) porCat["Deudas y compras pagadas"] = r2((porCat["Deudas y compras pagadas"]||0) + T.dPag);
   const items = Object.entries(porCat).sort((a,b)=>b[1]-a[1]);
   $("#mzCatHint").textContent = items.length ? fmt(T.gasto)+" en total" : "";
   $("#mzPorCat").innerHTML = items.length ? items.map((it,i)=>`
@@ -1634,12 +1640,18 @@ function renderMaiz(){
         </div>
       </div>
     </div>`).join("") +
-    `<div class="rpitem" style="margin-top:6px;border-top:1px solid var(--line);border-bottom:none">
-       <span class="rn">Pendiente de pagar</span>
-       <span class="rv" style="font-weight:700;color:${T.dPend>0?"var(--bad)":"var(--ok)"}">${fmt(T.dPend)}</span></div>` +
-    (T.fiado>0 ? `<div class="rpitem" style="border-bottom:none"><span class="rn">Gastos fiados (en la tabla de gastos)</span>
-       <span class="rv" style="font-weight:700;color:var(--bad)">${fmt(T.fiado)}</span></div>` : "")
-    : '<div class="empty">No debes nada en esta cosecha.</div>';
+    `<div style="margin-top:8px;border-top:1px solid var(--line)">
+       <div class="rpitem"><span class="rn">Ya pagado <span style="color:var(--muted);font-weight:400">(cuenta como gasto)</span></span>
+         <span class="rv" style="font-weight:700;color:var(--ok)">${fmt(T.dPag)}</span></div>
+       <div class="rpitem"><span class="rn">Pendiente de pagar</span>
+         <span class="rv" style="font-weight:700;color:${T.dPend>0?"var(--bad)":"var(--muted)"}">${fmt(T.dPend)}</span></div>
+       <div class="rpitem" style="border-bottom:none">
+         <span class="rn" style="font-size:14.5px">Total de esta lista</span>
+         <span class="rv" style="font-weight:700;font-size:15px">${fmt(r2(T.dPag+T.dPend))}</span></div>
+     </div>` +
+    (T.fiado>0 ? `<div class="note" style="margin-top:10px">Aparte, en la tabla de gastos tienes
+       <b>${fmt(T.fiado)}</b> fiado sin pagar.</div>` : "")
+    : '<div class="empty">Aún no has anotado deudas ni compras en esta cosecha.</div>';
 
   $$("#mzDeudas [data-mzdpag]").forEach(b=>b.addEventListener("click",()=>{
     const d = mzS().deudas.find(x=>x.id===b.dataset.mzdpag); if(!d) return;
@@ -1665,9 +1677,17 @@ function renderMaiz(){
       <td style="text-align:right"><button class="iconbtn" data-mzgdel="${g.id}" title="Eliminar">✕</button></td>
     </tr>`).join("")
     : '<tr><td colspan="6" class="empty">Aún no has anotado gastos en esta cosecha.</td></tr>';
-  $("#mzgCount").textContent = gs.length
-    ? gs.length+" gasto(s) · "+fmt(T.gasto)
-    : "";
+  $("#mzgCount").textContent = gs.length ? gs.length+" anotado(s) · "+fmt(T.gastoAnot) : "";
+  $("#mzGasTot").innerHTML = `
+    <div class="rpitem"><span class="rn">Gastos anotados en esta tabla</span>
+      <span class="rv">${fmt(T.gastoAnot)}</span></div>
+    <div class="rpitem"><span class="rn">Deudas y compras ya pagadas</span>
+      <span class="rv">${fmt(T.dPag)}</span></div>
+    <div class="rpitem" style="border-bottom:none;border-top:2px solid var(--ink);margin-top:3px">
+      <span class="rn" style="font-size:15px">TOTAL DE GASTOS DE LA COSECHA</span>
+      <span class="rv" style="font-size:17px;font-weight:700;color:var(--bad)">${fmt(T.gasto)}</span></div>
+    ${T.debo>0 ? `<div class="note" style="margin-top:9px">Todavía debes <b>${fmt(T.debo)}</b>
+      de lo anterior.</div>` : ""}`;
 
   $$("#mzTblGas [data-mzgpag]").forEach(b=>b.addEventListener("click",()=>{
     const g = mzS().gastos.find(x=>x.id===b.dataset.mzgpag); if(!g) return;
@@ -1845,7 +1865,9 @@ $("#mzCsv").addEventListener("click",()=>{
   const T = mzTot(C.id);
   const rows = [
     ["Cosecha", C.nom], ["Fecha de siembra", C.fecha||""], ["Area (manzanas)", T.area||0],
-    ["Capital inicial", T.capital], ["Gastado", T.gasto], ["Pagado", T.pagado], ["Fiado", T.fiado],
+    ["Capital inicial", T.capital], ["Gastos anotados", T.gastoAnot],
+    ["Deudas y compras pagadas", T.dPag], ["TOTAL DE GASTOS", T.gasto],
+    ["De ese total, fiado sin pagar", T.fiado],
     ["Deudas pendientes", T.dPend], ["Lo que debo", T.debo], ["Efectivo disponible", T.efectivo],
     ["Quintales vendidos", T.qq], ["Venta", T.venta], ["Utilidad", T.utilidad],
     ["Costo por quintal", T.costoQq], [],
