@@ -68,7 +68,7 @@ td:first-child{white-space:nowrap;color:var(--muted);font-weight:600}
 .appbar h1{font-size:1.35rem;font-weight:800;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .appbar .logo{width:34px;height:34px;flex:none}
 body.on-detail .appbar{display:none}
-.sync-dot{width:9px;height:9px;border-radius:50%;background:var(--muted);flex:none}
+.sync-dot{cursor:pointer;outline-offset:6px;width:12px;height:12px;border-radius:50%;background:var(--muted);flex:none}
 .sync-dot.on{background:var(--ok);box-shadow:0 0 0 4px rgba(95,211,138,.15)}
 .icon-btn{all:unset;box-sizing:border-box;cursor:pointer;width:40px;height:40px;display:grid;place-items:center;border-radius:12px;color:var(--fg)}
 .icon-btn svg{width:24px;height:24px}
@@ -344,7 +344,7 @@ body.on-detail .appbar{display:none}
   <button type="button" class="icon-btn" id="btnBack" data-nav="back" aria-label="Volver" hidden><svg class="ico" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
   <svg class="logo" id="appLogo" viewBox="0 0 40 40" aria-hidden="true"><path d="M20 4c7 0 13 11 13 19a13 13 0 0 1-26 0C7 15 13 4 20 4z" fill="#f2ead9"/><path d="M9 22l4 3 3.5-3 3.5 3 3.5-3 3.5 3 4-3" stroke="#f5b544" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
   <h1 id="appTitle">Mi Granja</h1>
-  <span class="sync-dot" id="syncDot" title="Conectando…"></span>
+  <span class="sync-dot" id="syncDot" title="Conectando…" role="button" tabindex="0" aria-label="Estado del guardado y cuenta"></span>
 </header>
 
 <!-- INICIO -->
@@ -454,8 +454,26 @@ body.on-detail .appbar{display:none}
     <div class="actions"><button type="button" class="btn" data-confirm="no">Cancelar</button><button type="button" class="btn danger" data-confirm="yes">Borrar lote</button></div>
   </div>
 </div>
+<div class="sheet-bg" id="loginBg" hidden>
+  <form class="sheet" id="loginForm" role="dialog" aria-modal="true" aria-labelledby="lgTitle" novalidate>
+    <h3 id="lgTitle">Inicia sesión</h3>
+    <p>Usa el mismo correo y contraseña de tu app de taxis. Así tus lotes se guardan en la nube y los ves en todos tus dispositivos.</p>
+    <div class="field"><label for="lgEmail">Correo</label><input type="email" id="lgEmail" autocomplete="username" inputmode="email"></div>
+    <div class="field"><label for="lgPass">Contraseña</label><input type="password" id="lgPass" autocomplete="current-password"></div>
+    <p class="status-msg" id="lgMsg" role="status"></p>
+    <div class="actions"><button type="button" class="btn" data-close="loginBg">Ahora no</button><button type="submit" class="btn primary">Entrar</button></div>
+  </form>
+</div>
+<div class="sheet-bg" id="cuentaBg" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="cuentaTitle">
+    <h3 id="cuentaTitle">Tu cuenta</h3>
+    <p id="cuentaTxt"></p>
+    <div class="actions"><button type="button" class="btn" data-close="cuentaBg">Cerrar</button><button type="button" class="btn danger" data-logout="1">Cerrar sesión</button></div>
+  </div>
+</div>
 <div class="toast" id="toast" role="status" hidden></div>
 
+<script>window.GRANJA_FIREBASE={"config": {"apiKey": "AIzaSyCvL48BdJPbFVWoMJtM2SLRDhItMqp5Ogc", "authDomain": "finanzas-taxi-f7a0c.firebaseapp.com", "projectId": "finanzas-taxi-f7a0c", "storageBucket": "finanzas-taxi-f7a0c.firebasestorage.app", "messagingSenderId": "430445076013", "appId": "1:430445076013:web:3958e72490484ad2b162a4"}, "code": "gustavo-granja"};</script>
 <script>
 const IMG={"ponedora": "granja-ponedora.jpg", "engorde": "granja-engorde.jpg", "criolla": "granja-criolla.jpg", "codorniz": "granja-codorniz.jpg", "pavo": "granja-pavo.jpg", "pekin": "granja-pekin.jpg", "criollo": "granja-criollo.jpg", "ganso": "granja-ganso.jpg", "guinea": "granja-guinea.jpg", "faisan": "granja-faisan.jpg", "perdiz": "granja-perdiz.jpg", "paloma": "granja-paloma.jpg"};
 const CREDITS={"ponedora": {"title": "File:Isa cs layers brownJPG.jpg", "artist": "Mercoaves", "license": "CC BY-SA 4.0", "page": "https://commons.wikimedia.org/wiki/File:Isa_cs_layers_brownJPG.jpg"}, "engorde": {"title": "File:Broilers Australia June 2018.jpg", "artist": "Animals Uncovered", "license": "CC BY 4.0", "page": "https://commons.wikimedia.org/wiki/File:Broilers_Australia_June_2018.jpg"}, "criolla": {"title": "File:Male and female chicken sitting together.jpg", "artist": "Andrei Niemimäki from Turku, Finland", "license": "CC BY-SA 2.0", "page": "https://commons.wikimedia.org/wiki/File:Male_and_female_chicken_sitting_together.jpg"}, "codorniz": {"title": "File:Japanese Quail.jpg", "artist": "Ingrid Taylar", "license": "CC BY 2.0", "page": "https://commons.wikimedia.org/wiki/File:Japanese_Quail.jpg"}, "pavo": {"title": "File:Male north american turkey supersaturated.jpg", "artist": "photo taken by Lupin on en:Wikipedia", "license": "CC BY-SA 3.0", "page": "https://commons.wikimedia.org/wiki/File:Male_north_american_turkey_supersaturated.jpg"}, "criollo": {"title": "File:MuscovyDuck.jpg", "artist": "", "license": "CC BY-SA 3.0", "page": "https://commons.wikimedia.org/wiki/File:MuscovyDuck.jpg"}, "guinea": {"title": "File:Reichenow's helmeted guineafowl (Numida meleagris reichenowi) Serengeti.jpg", "artist": "Charles J. Sharp", "license": "CC BY-SA 4.0", "page": "https://commons.wikimedia.org/wiki/File:Reichenow%27s_helmeted_guineafowl_(Numida_meleagris_reichenowi)_Serengeti.jpg"}, "faisan": {"title": "File:Phasianus colchicus Oulu 20200524 02.jpg", "artist": "Estormiz", "license": "CC0", "page": "https://commons.wikimedia.org/wiki/File:Phasianus_colchicus_Oulu_20200524_02.jpg"}, "perdiz": {"title": "File:Chukarhuhn Weltvogelpark Walsrode 2010.jpg", "artist": "Olaf Oliviero Riemer", "license": "CC BY-SA 3.0", "page": "https://commons.wikimedia.org/wiki/File:Chukarhuhn_Weltvogelpark_Walsrode_2010.jpg"}, "paloma": {"title": "File:King pigeons.jpg", "artist": "Graham Manning", "license": "CC BY-SA 3.0", "page": "https://commons.wikimedia.org/wiki/File:King_pigeons.jpg"}, "pekin": {"title": "File:Pekin duck in Buddha park lake, Eluru.jpg", "artist": "iMahesh", "license": "CC BY-SA 4.0", "page": "https://commons.wikimedia.org/wiki/File:Pekin_duck_in_Buddha_park_lake,_Eluru.jpg"}, "ganso": {"title": "File:Embden Goose (Lake Pflugerville, TX).jpg", "artist": "MealycupSage", "license": "CC0", "page": "https://commons.wikimedia.org/wiki/File:Embden_Goose_(Lake_Pflugerville,_TX).jpg"}};
@@ -756,6 +774,71 @@ Object.values(SPECIES).forEach(s=>{s.plan=buildPlan(s);s.ovos=s.inc.ovos});
   const strip=l=>{const {id,...rest}=l;return rest};
   function setSync(text,on){$('storeNote').textContent=text;$('syncDot').classList.toggle('on',!!on);$('syncDot').title=text}
 
+  // ---------- nube (Firebase) para la copia publicada fuera de Claude ----------
+  const nube={auth:null,col:null,unsub:null};
+  function loadFirebase(){
+    if(window.firebase&&firebase.firestore&&firebase.auth)return Promise.resolve();
+    const B='https://www.gstatic.com/firebasejs/10.12.2/';
+    const add=src=>new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s)});
+    return add(B+'firebase-app-compat.js').then(()=>add(B+'firebase-auth-compat.js')).then(()=>add(B+'firebase-firestore-compat.js'));
+  }
+  function nubeLocal(msg){
+    if(nube.unsub){nube.unsub();nube.unsub=null}
+    store=localStore;lotes=store.load();renderAll();setSync(msg,false);
+  }
+  async function initNube(){
+    setSync('Conectando con la nube…',false);
+    try{await loadFirebase()}catch(e){setSync('Sin internet: tus lotes se guardan en este navegador hasta que vuelva la conexión.',false);return}
+    if(!firebase.apps.length)firebase.initializeApp(window.GRANJA_FIREBASE.config);
+    const fdb=firebase.firestore();
+    try{fdb.enablePersistence({synchronizeTabs:true}).catch(()=>{})}catch(e){}
+    nube.auth=firebase.auth();
+    nube.col=fdb.collection('empresas').doc(window.GRANJA_FIREBASE.code).collection('lotes');
+    nube.auth.onAuthStateChanged(async user=>{
+      if(!user){nubeLocal('Sin sesión: tus lotes se guardan solo en este navegador. Toca el punto de arriba para entrar.');openLogin();return}
+      $('loginBg').hidden=true;
+      const col=nube.col;
+      // pasa a la nube lo que se registró en este navegador antes de entrar
+      const loc=localStore.load();
+      if(loc.length){
+        try{for(const l of loc)await col.doc(l.id).set(strip(l));localStorage.removeItem(LS);toast(loc.length===1?'1 lote pasado a la nube':loc.length+' lotes pasados a la nube')}
+        catch(e){toast('No se pudieron subir los lotes de este navegador. Se intentará de nuevo al volver a entrar.')}
+      }
+      store={
+        put(id,data){col.doc(id).set(data).catch(e=>toast(e.code==='permission-denied'?'La nube rechazó el cambio: revisa las reglas de Firebase.':'No se pudo guardar en la nube.'));return Promise.resolve()},
+        del(id){col.doc(id).delete().catch(()=>toast('No se pudo borrar en la nube.'));return Promise.resolve()},
+        newId(){return col.doc().id}
+      };
+      if(nube.unsub)nube.unsub();
+      nube.unsub=col.onSnapshot({includeMetadataChanges:true},snap=>{
+        lotes=snap.docs.map(d=>({...d.data(),id:d.id}));
+        renderAll();
+        setSync(snap.metadata.fromCache?'Sin conexión: se ve la última copia y los cambios se suben al volver internet.':'Conectado como '+user.email+'. Tus lotes se ven en todos tus dispositivos.',!snap.metadata.fromCache);
+      },err=>{
+        nubeLocal(err.code==='permission-denied'?'La nube no dio permiso para leer los lotes: hay que ajustar las reglas de Firebase. Por ahora se guarda en este navegador.':'No se pudo leer la nube ('+err.code+'). Por ahora se guarda en este navegador.');
+      });
+    });
+  }
+  function openLogin(){$('lgMsg').textContent='';$('loginBg').hidden=false;setTimeout(()=>$('lgEmail').focus(),50)}
+  $('loginForm').addEventListener('submit',e=>{
+    e.preventDefault();
+    const em=$('lgEmail').value.trim(), pw=$('lgPass').value;
+    if(!em||!pw){$('lgMsg').textContent='Escribe tu correo y tu contraseña.';return}
+    if(!nube.auth){$('lgMsg').textContent='No hay conexión con la nube. Revisa tu internet y recarga la página.';return}
+    $('lgMsg').textContent='Entrando…';
+    nube.auth.signInWithEmailAndPassword(em,pw).then(()=>{$('lgPass').value=''}).catch(er=>{
+      const m={'auth/invalid-credential':'Correo o contraseña incorrectos.','auth/wrong-password':'Contraseña incorrecta.','auth/user-not-found':'Ese correo no está registrado.','auth/invalid-email':'El correo no es válido.','auth/too-many-requests':'Demasiados intentos. Espera un momento.','auth/network-request-failed':'Sin internet. Revisa tu conexión.'};
+      $('lgMsg').textContent=m[er.code]||'No se pudo entrar ('+(er.code||er.message)+').';
+    });
+  });
+  $('syncDot').addEventListener('click',()=>{
+    if(!window.GRANJA_FIREBASE)return;
+    const u=nube.auth&&nube.auth.currentUser;
+    if(!u){openLogin();return}
+    $('cuentaTxt').textContent='Conectado como '+u.email+'. Tus lotes se guardan en la nube.';
+    $('cuentaBg').hidden=false;
+  });
+
   async function initStore(){
     let db=null,user=null;
     try{db=window.claude?await window.claude.use('db'):null}catch(e){db=null}
@@ -763,6 +846,7 @@ Object.values(SPECIES).forEach(s=>{s.plan=buildPlan(s);s.ovos=s.inc.ovos});
       store=localStore;lotes=store.load();
       try{localStorage.setItem('aves.t','1');localStorage.removeItem('aves.t');store.ok=true}catch(e){store.ok=false}
       renderAll();
+      if(window.GRANJA_FIREBASE){initNube();return}
       setSync(store.ok?'Tus lotes se guardan en este dispositivo y navegador.':'Este navegador no permite guardar datos: los lotes se pierden al cerrar la página.',store.ok);
       return;
     }
@@ -1146,9 +1230,11 @@ Object.values(SPECIES).forEach(s=>{s.plan=buildPlan(s);s.ovos=s.inc.ovos});
 
   // ---------- eventos ----------
   document.addEventListener('click',e=>{
-    const t=e.target.closest('[data-edit],[data-del],[data-new],[data-pick],[data-guide],[data-nav],[data-tab],[data-filter],[data-day],[data-confirm],[data-open]');
+    const t=e.target.closest('[data-close],[data-logout],[data-edit],[data-del],[data-new],[data-pick],[data-guide],[data-nav],[data-tab],[data-filter],[data-day],[data-confirm],[data-open]');
     if(!t)return;
     const ds=t.dataset;
+    if(ds.close){$(ds.close).hidden=true;return}
+    if(ds.logout){$('cuentaBg').hidden=true;if(nube.auth)nube.auth.signOut().catch(()=>{});return}
     if(ds.edit){const l=lotes.find(x=>x.id===ds.edit);if(l)openForm(l.especie,l);return}
     if(ds.del){pendingDel=ds.del;const l=lotes.find(x=>x.id===ds.del);$('confirmTxt').textContent='¿Borrar '+(l?l.nombre:'este lote')+'?';$('confirmBg').hidden=false;return}
     if(ds.confirm){
@@ -1169,7 +1255,7 @@ Object.values(SPECIES).forEach(s=>{s.plan=buildPlan(s);s.ovos=s.inc.ovos});
   });
   document.addEventListener('keydown',e=>{
     if(e.key==='Escape'&&!$('confirmBg').hidden){$('confirmBg').hidden=true;pendingDel=null}
-    if((e.key==='Enter'||e.key===' ')&&e.target.matches('.lcard')){e.preventDefault();e.target.click()}
+    if((e.key==='Enter'||e.key===' ')&&e.target.matches('.lcard,#syncDot')){e.preventDefault();e.target.click()}
   });
   document.addEventListener('change',e=>{
     if(e.target.id==='fotoInput'&&e.target.files[0]){const l=lotes.find(x=>x.id===detailId);if(l)setPhoto(e.target.files[0],l)}
