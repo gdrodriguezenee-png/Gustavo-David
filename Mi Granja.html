@@ -154,6 +154,7 @@ body.on-detail .appbar{display:none}
 .lc-side{background:var(--surface-2);display:grid;justify-items:center;align-content:center;gap:4px;padding:10px 0}
 .lc-side .mon{font:600 .95rem var(--f-body);color:var(--muted);text-transform:lowercase}
 .lc-side .day{font:800 1.8rem var(--f-display);line-height:1;margin-bottom:8px}
+.lc-side .yr{font:600 .8rem var(--f-body);color:var(--muted);margin:-8px 0 8px}
 @media (max-width:380px){.lcard{grid-template-columns:minmax(0,1fr) 104px}.lc-side{grid-column:1/-1;display:flex;justify-content:flex-end;padding:4px 10px}.lc-side .day{font-size:1.1rem;margin:0}.ring{width:96px;height:96px}}
 
 .empty{border:2px dashed var(--line);border-radius:18px;padding:24px;text-align:center;color:var(--muted);display:grid;gap:6px}
@@ -711,6 +712,21 @@ Object.values(SPECIES).forEach(s=>{s.plan=buildPlan(s);s.ovos=s.inc.ovos});
   const byAge=(tbl,age)=>{for(const [lim,v] of tbl) if(age<lim) return v; return tbl[tbl.length-1][1]};
   const shortTipo=t=>(t||'').split(/[ (/]/)[0]||'Incubadora';
   const img=k=>IMG[keyOf(k)];
+  // edad en calendario: años, meses y días cumplidos
+  function ymd(from,to){
+    let y=to.getFullYear()-from.getFullYear(), m=to.getMonth()-from.getMonth(), d=to.getDate()-from.getDate();
+    if(d<0){m--;d+=new Date(to.getFullYear(),to.getMonth(),0).getDate()}
+    if(m<0){y--;m+=12}
+    return y<0?{y:0,m:0,d:0}:{y,m,d};
+  }
+  function edadTxt(e){
+    const p=[];
+    if(e.y)p.push(e.y+(e.y===1?' año':' años'));
+    if(e.m)p.push(e.m+(e.m===1?' mes':' meses'));
+    if(e.d||!p.length)p.push(e.d+(e.d===1?' día':' días'));
+    return p.length>1?p.slice(0,-1).join(', ')+' y '+p[p.length-1]:p[0];
+  }
+  const edadCorta=e=>e.y?e.y+'a '+e.m+'m':e.m?e.m+'m '+e.d+'d':String(e.d);
 
   function itemState(it,age){
     let [start,dur,,,,every]=it;
@@ -886,7 +902,7 @@ Object.values(SPECIES).forEach(s=>{s.plan=buildPlan(s);s.ovos=s.inc.ovos});
 
   // ---------- piezas ----------
   function ring(n,p,label){
-    const C=2*Math.PI*44, len=Math.max(0,Math.min(1,p))*C, fs=String(n).length>2?28:36;
+    const C=2*Math.PI*44, len=Math.max(0,Math.min(1,p))*C, L=String(n).length, fs=L<=2?36:L===3?28:21;
     return `<svg class="ring" viewBox="0 0 120 120" role="img" aria-label="${esc(n+' '+label)}">
       <circle cx="60" cy="60" r="56" fill="none" stroke="var(--surface-3)" stroke-width="3" stroke-dasharray="14 6"/>
       <circle cx="60" cy="60" r="44" fill="none" stroke="var(--surface-3)" stroke-width="12"/>
@@ -899,7 +915,7 @@ Object.values(SPECIES).forEach(s=>{s.plan=buildPlan(s);s.ovos=s.inc.ovos});
     const I=info(l), s=I.s;
     let n,label,p,pill,c1,c2;
     if(I.incubando){n=Math.max(0,s.days-I.diaInc);label='Días restantes';p=I.diaInc/s.days;pill=shortTipo(l.tipo);c1='Días totales : '+s.days;c2='Días completados : '+Math.max(0,I.diaInc)}
-    else{n=Math.max(0,I.age);label='Días de edad';p=I.age/s.meta[0];pill=I.stage;c1='Vivas : '+(I.vivas??'—');c2='Semana '+(Math.floor(Math.max(0,I.age)/7)+1)}
+    else{const e=ymd(I.hatch,I.t);n=edadCorta(e);label=e.y||e.m?edadTxt(e):'Días de edad';p=I.age/s.meta[0];pill=I.stage;c1='Vivas : '+(I.vivas??'—');c2='Semana '+(Math.floor(Math.max(0,I.age)/7)+1)}
     const no=I.nacido?Math.max(0,l.huevos-l.nacidos):0;
     const mon=I.inicio.toLocaleDateString('es',{month:'short'}).replace('.','');
     return `<article class="lcard" data-open="${esc(l.id)}" tabindex="0" aria-label="${esc(l.nombre)}">
@@ -909,7 +925,7 @@ Object.values(SPECIES).forEach(s=>{s.plan=buildPlan(s);s.ovos=s.inc.ovos});
         <div class="chips"><span class="chip">${c1}</span><span class="chip solid">${c2}</span></div>
       </div>
       <div class="lc-ring">${ring(n,p,label)}<div class="ring-lbl">${label}</div><span class="pill-o">${esc(pill)}</span></div>
-      <div class="lc-side"><span class="mon">${mon}</span><span class="day">${I.inicio.getDate()}</span>
+      <div class="lc-side"><span class="mon">${mon}</span><span class="day">${I.inicio.getDate()}</span>${I.inicio.getFullYear()!==I.t.getFullYear()?`<span class="yr">${I.inicio.getFullYear()}</span>`:''}
         ${canWrite?`<button type="button" class="icon-btn" data-edit="${esc(l.id)}" aria-label="Editar ${esc(l.nombre)}">${IC.edit}</button><button type="button" class="icon-btn" data-del="${esc(l.id)}" aria-label="Borrar ${esc(l.nombre)}">${IC.trash}</button>`:''}
       </div>
     </article>`;
@@ -1062,7 +1078,7 @@ Object.values(SPECIES).forEach(s=>{s.plan=buildPlan(s);s.ovos=s.inc.ovos});
       return `<div class="info-top"><span>${s.name.toLowerCase()}</span><span class="status ${I.stCls}">${I.stage}</span></div>
       <div class="info-name"><span class="avatar round">${thumb(l)}</span><h2>${esc(l.nombre)}</h2></div>
       <dl class="info">
-        <div><dt>Edad</dt><dd>${I.incubando?`Incubando · día ${Math.max(0,I.diaInc)} de ${s.days}`:I.age+' días (semana '+(Math.floor(Math.max(0,I.age)/7)+1)+')'}</dd></div>
+        <div><dt>Edad</dt><dd>${I.incubando?`Incubando · día ${Math.max(0,I.diaInc)} de ${s.days}`:edadTxt(ymd(I.hatch,I.t))+' (semana '+(Math.floor(Math.max(0,I.age)/7)+1)+')'}</dd></div>
         <div><dt>Fecha de nacimiento</dt><dd>${fmt(I.hatch)}${l.fechaNac?'':' <small style="color:var(--muted)">(estimada)</small>'}</dd></div>
         <div><dt>Huevos metidos el</dt><dd>${fmt(I.inicio)}${l.hora?' · '+fmtH(l.hora):''}</dd></div>
         <div><dt>Incubadora</dt><dd>${esc(l.tipo)}${l.marca?' · '+esc(l.marca):''}${l.capacidad?' · '+l.capacidad+' huevos':''}</dd></div>
