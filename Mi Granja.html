@@ -154,6 +154,8 @@ body.on-detail .appbar{display:none}
 .lc-side{background:var(--surface-2);display:grid;justify-items:center;align-content:center;gap:4px;padding:10px 0}
 .lc-side .mon{font:600 .95rem var(--f-body);color:var(--muted);text-transform:lowercase}
 .lc-side .day{font:800 1.8rem var(--f-display);line-height:1;margin-bottom:8px}
+.linkbtn{all:unset;cursor:pointer;justify-self:start;color:var(--accent-ink);font:700 .92rem var(--f-body);text-decoration:underline;text-underline-offset:3px}
+.linkbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .lc-side .yr{font:600 .8rem var(--f-body);color:var(--muted);margin:-8px 0 8px}
 @media (max-width:380px){.lcard{grid-template-columns:minmax(0,1fr) 104px}.lc-side{grid-column:1/-1;display:flex;justify-content:flex-end;padding:4px 10px}.lc-side .day{font-size:1.1rem;margin:0}.ring{width:96px;height:96px}}
 
@@ -461,6 +463,7 @@ body.on-detail .appbar{display:none}
     <p>Usa el mismo correo y contraseña de tu app de taxis. Así tus lotes se guardan en la nube y los ves en todos tus dispositivos.</p>
     <div class="field"><label for="lgEmail">Correo</label><input type="email" id="lgEmail" autocomplete="username" inputmode="email"></div>
     <div class="field"><label for="lgPass">Contraseña</label><input type="password" id="lgPass" autocomplete="current-password"></div>
+    <button type="button" class="linkbtn" id="lgForgot">Olvidé mi contraseña</button>
     <p class="status-msg" id="lgMsg" role="status"></p>
     <div class="actions"><button type="button" class="btn" data-close="loginBg">Ahora no</button><button type="submit" class="btn primary">Entrar</button></div>
   </form>
@@ -845,6 +848,19 @@ Object.values(SPECIES).forEach(s=>{s.plan=buildPlan(s);s.ovos=s.inc.ovos});
     nube.auth.signInWithEmailAndPassword(em,pw).then(()=>{$('lgPass').value=''}).catch(er=>{
       const m={'auth/invalid-credential':'Correo o contraseña incorrectos.','auth/wrong-password':'Contraseña incorrecta.','auth/user-not-found':'Ese correo no está registrado.','auth/invalid-email':'El correo no es válido.','auth/too-many-requests':'Demasiados intentos. Espera un momento.','auth/network-request-failed':'Sin internet. Revisa tu conexión.'};
       $('lgMsg').textContent=m[er.code]||'No se pudo entrar ('+(er.code||er.message)+').';
+    });
+  });
+  $('lgForgot').addEventListener('click',()=>{
+    const em=$('lgEmail').value.trim();
+    if(!em||!em.includes('@')){$('lgMsg').textContent='Escribe arriba tu correo completo (por ejemplo nombre@gmail.com) y vuelve a tocar «Olvidé mi contraseña».';$('lgEmail').focus();return}
+    if(!nube.auth){$('lgMsg').textContent='No hay conexión con la nube. Revisa tu internet y recarga la página.';return}
+    $('lgMsg').textContent='Enviando…';
+    nube.auth.languageCode='es';
+    nube.auth.sendPasswordResetEmail(em).then(()=>{
+      $('lgMsg').textContent='Listo. Si '+em+' está registrado, te llegará un correo para crear una contraseña nueva. Revisa también la carpeta de spam.';
+    }).catch(er=>{
+      const m={'auth/invalid-email':'El correo no es válido.','auth/user-not-found':'Ese correo no está registrado.','auth/too-many-requests':'Demasiados intentos. Espera un momento.','auth/network-request-failed':'Sin internet. Revisa tu conexión.'};
+      $('lgMsg').textContent=m[er.code]||'No se pudo enviar el correo ('+(er.code||er.message)+').';
     });
   });
   $('syncDot').addEventListener('click',()=>{
