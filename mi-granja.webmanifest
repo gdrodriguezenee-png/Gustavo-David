@@ -1,0 +1,25 @@
+{
+ "id": "mi-granja",
+ "name": "Mi Granja",
+ "short_name": "Mi Granja",
+ "description": "Lotes de incubación, vitaminas, vacunas y guías de manejo de aves de corral.",
+ "lang": "es",
+ "start_url": "Mi%20Granja.html",
+ "scope": "./",
+ "display": "standalone",
+ "background_color": "#0f1311",
+ "theme_color": "#0f1311",
+ "icons": [
+  {
+   "src": "granja-icon-192.png",
+   "sizes": "192x192",
+   "type": "image/png"
+  },
+  {
+   "src": "granja-icon-512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "any maskable"
+  }
+ ]
+}
