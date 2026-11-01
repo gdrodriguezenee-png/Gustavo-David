@@ -1,0 +1,1185 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f1311">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Mi Granja</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Source+Sans+3:wght@400;600;700;800&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: app móvil oscura — barra superior, vistas apiladas (inicio, historia, detalle, formulario, manual) y barra de navegación inferior */
+:root{
+  --bg:#0f1311; --surface:#1a201d; --surface-2:#252d29; --surface-3:#2f3833; --fg:#eef2ec; --muted:#9aa69e; --line:#333d38;
+  --accent:#f5b544; --accent-ink:#ffcf6e; --accent-soft:#3a2c12;
+  --hen:#ff8a65; --hen-soft:#3d241c; --quail:#8fd3a8; --quail-soft:#1d3427;
+  --warn:#ff7a6b; --warn-soft:#3b1f1b; --ok:#5fd38a; --vit:#f5b544; --vac:#ff7a6b; --ali:#8fd3a8; --man:#8fb4ff;
+  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body:"Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, Consolas, monospace;
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:16px;line-height:1.5;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));
+  padding-block:0 calc(96px + env(safe-area-inset-bottom, 0px))}
+.wrap{max-width:760px;margin:0 auto}
+
+h1,h2,h3{font-family:var(--f-display);line-height:1.15;text-wrap:balance;margin:0}
+h2{font-size:1.45rem;font-weight:800}
+h3{font-size:1.1rem;font-weight:700}
+p{margin:0}
+a{color:var(--accent-ink)}
+.muted{color:var(--muted)}
+.eyebrow{font-size:.75rem;text-transform:uppercase;letter-spacing:.09em;color:var(--accent-ink);font-weight:800}
+.note{background:var(--accent-soft);border-radius:14px;padding:12px 14px;font-size:.95rem}
+.tbl{overflow-x:auto;border-radius:14px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:.95rem}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+thead th{background:var(--surface-2);font-weight:800;font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+td:first-child{white-space:nowrap;color:var(--muted);font-weight:600}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:12px 14px}
+.fgrid > *{min-width:0}
+.field{display:grid;gap:5px}
+.field label{font-size:.78rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.field input,.field select,.field textarea{font:600 1.05rem var(--f-body);padding:11px 12px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--fg);width:100%}
+.field textarea{font-weight:400;min-height:70px;resize:vertical}
+.field .hint{font-size:.8rem;color:var(--muted)}
+.field input:focus-visible,.field select:focus-visible,.field textarea:focus-visible,.btn:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.btn{font:800 1rem var(--f-body);border-radius:14px;padding:12px 20px;cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--fg);display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn .ico{width:20px;height:20px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#1f1606}
+.btn.danger{color:var(--warn);border-color:var(--warn);background:transparent}
+.btn:disabled{opacity:.5;cursor:default}
+.status-msg{font-size:.9rem;color:var(--muted)}
+
+/* ---------- app shell ---------- */
+.appbar{position:sticky;top:env(safe-area-inset-top, 0px);z-index:20;background:var(--bg);display:flex;align-items:center;gap:10px;height:58px;
+  margin-inline:calc(-1 * max(16px, env(safe-area-inset-left, 0px)));padding-inline:max(16px, env(safe-area-inset-left, 0px))}
+.appbar h1{font-size:1.35rem;font-weight:800;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.appbar .logo{width:34px;height:34px;flex:none}
+body.on-detail .appbar{display:none}
+.sync-dot{width:9px;height:9px;border-radius:50%;background:var(--muted);flex:none}
+.sync-dot.on{background:var(--ok);box-shadow:0 0 0 4px rgba(95,211,138,.15)}
+.icon-btn{all:unset;box-sizing:border-box;cursor:pointer;width:40px;height:40px;display:grid;place-items:center;border-radius:12px;color:var(--fg)}
+.icon-btn svg{width:24px;height:24px}
+.icon-btn:hover{background:var(--surface-2)}
+.icon-btn:focus-visible,.bnav button:focus-visible,.sp-card:focus-visible,.lcard:focus-visible,.tabs button:focus-visible,.chipf:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.ico{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+.view{display:grid;gap:18px;padding-block:6px 20px}
+.vh{font-size:1.15rem;font-weight:800;color:var(--fg)}
+.vh-sub{color:var(--muted);font-size:.92rem;margin-top:-12px}
+
+/* bottom nav */
+.bnav{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--surface);border-top:1px solid var(--line);
+  display:grid;grid-template-columns:repeat(5,1fr);align-items:end;
+  padding:6px max(8px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px))}
+.bnav button{all:unset;cursor:pointer;display:grid;justify-items:center;gap:2px;color:var(--muted);font:600 .78rem var(--f-body);padding:6px 0;border-radius:12px}
+.bnav button svg{width:26px;height:26px}
+.bnav button[aria-current="page"]{color:var(--fg)}
+.bnav button[aria-current="page"] svg{color:var(--accent)}
+.bnav .fab{width:58px;height:58px;border-radius:18px;background:var(--accent);color:#1f1606;display:grid;place-items:center;margin-top:-26px;
+  box-shadow:0 6px 18px rgba(0,0,0,.45);justify-self:center;padding:0}
+.bnav .fab svg{width:30px;height:30px;stroke-width:2.6}
+
+/* hoy banner */
+.today{background:linear-gradient(135deg,#2b2412,#1a201d 70%);border:1px solid var(--line);border-radius:20px;padding:16px 18px;display:grid;gap:12px}
+.today-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.today-top strong{font:800 1.3rem var(--f-display)}
+.today-top span{color:var(--muted);font-size:.9rem}
+.mini-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.mini-kpis div{background:rgba(0,0,0,.25);border-radius:12px;padding:8px 10px}
+.mini-kpis b{display:block;font:500 1.35rem var(--f-mono)}
+.mini-kpis span{font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700}
+
+/* elegir especie */
+.species-pick{display:flex;gap:12px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+.species-pick::-webkit-scrollbar{display:none}
+.sp-card{all:unset;box-sizing:border-box;cursor:pointer;flex:0 0 150px;display:grid;justify-items:center;gap:6px;text-align:center}
+.sp-card .pic{width:150px;height:150px;border-radius:20px;border:1.5px solid var(--line);background:var(--surface);display:grid;place-items:center;transition:border-color .15s, transform .15s}
+.sp-card .pic svg{width:112px;height:112px}
+.sp-card:hover .pic{border-color:var(--accent)}
+.sp-card b{font:700 1rem var(--f-body)}
+.sp-card small{color:var(--muted);font-size:.8rem;margin-top:-6px}
+.sp-card[aria-pressed="true"] .pic{border-color:var(--accent);background:var(--accent-soft)}
+.species-pick.small .sp-card{flex-basis:120px}
+.species-pick.small .pic{width:120px;height:110px}
+.species-pick.small .pic svg{width:84px;height:84px}
+
+/* tareas */
+.tasks{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.task{display:grid;grid-template-columns:6px 1fr auto;gap:12px;align-items:center;background:var(--surface);border-radius:14px;padding:10px 14px 10px 10px;cursor:pointer}
+.task .bar{align-self:stretch;border-radius:4px;background:var(--muted)}
+.task.vit .bar{background:var(--vit)} .task.vac .bar{background:var(--vac)} .task.ali .bar{background:var(--ali)} .task.man .bar{background:var(--man)} .task.inc .bar{background:var(--accent)}
+.task b{display:block;font-weight:700;line-height:1.3}
+.task small{color:var(--muted);font-size:.85rem}
+.task .when{font:500 .78rem var(--f-mono);color:var(--muted);text-align:right;white-space:nowrap}
+.task .when.now{color:var(--accent-ink)}
+
+/* tarjeta de lote (estilo contador) */
+.cards{display:grid;gap:14px}
+.lcard{display:grid;grid-template-columns:minmax(0,1fr) 118px 64px;background:var(--surface);border:1px solid var(--line);border-radius:20px;overflow:hidden;cursor:pointer}
+.lc-main{padding:12px 4px 12px 12px;display:grid;gap:10px;align-content:space-between;min-width:0}
+.counters{display:inline-flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:10px;padding:4px 8px;justify-self:start;background:var(--bg)}
+.counters span{display:inline-flex;align-items:center;gap:5px;font:500 1.05rem var(--f-mono)}
+.counters svg{width:24px;height:24px}
+.counters .chev{color:var(--muted)}
+.counters .chev svg{width:18px;height:18px}
+.lc-title{display:flex;align-items:center;gap:10px;min-width:0}
+.lc-title h3{font:800 1.18rem var(--f-display);line-height:1.15;overflow-wrap:anywhere}
+.lc-title small{display:block;color:var(--muted);font:600 .8rem var(--f-body)}
+.avatar{width:50px;height:50px;border-radius:14px;background:var(--surface-2);flex:none;display:grid;place-items:center;overflow:hidden}
+.avatar svg{width:42px;height:42px}
+.avatar img{width:100%;height:100%;object-fit:cover}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);border-radius:9px;padding:3px 9px;font:700 .82rem var(--f-body);white-space:nowrap}
+.chip.solid{background:var(--surface-3);border-color:var(--surface-3)}
+.lc-ring{display:grid;justify-items:center;align-content:center;gap:4px;padding:10px 0}
+.ring{width:108px;height:108px}
+.ring text{font-family:var(--f-display);font-weight:800;fill:var(--fg)}
+.ring-lbl{font:700 .7rem var(--f-body);text-transform:uppercase;letter-spacing:.05em;color:var(--muted);text-align:center;line-height:1.2}
+.pill-o{border:1.5px solid var(--accent);color:var(--accent-ink);border-radius:999px;padding:2px 10px;font:700 .75rem var(--f-body);max-width:112px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lcard.c .pill-o{border-color:var(--quail);color:var(--quail)}
+.lcard.g .pill-o{border-color:var(--hen);color:var(--hen)}
+.lc-side{background:var(--surface-2);display:grid;justify-items:center;align-content:center;gap:4px;padding:10px 0}
+.lc-side .mon{font:600 .95rem var(--f-body);color:var(--muted);text-transform:lowercase}
+.lc-side .day{font:800 1.8rem var(--f-display);line-height:1;margin-bottom:8px}
+@media (max-width:380px){.lcard{grid-template-columns:minmax(0,1fr) 104px}.lc-side{grid-column:1/-1;display:flex;justify-content:flex-end;padding:4px 10px}.lc-side .day{font-size:1.1rem;margin:0}.ring{width:96px;height:96px}}
+
+.empty{border:2px dashed var(--line);border-radius:18px;padding:24px;text-align:center;color:var(--muted);display:grid;gap:6px}
+.empty strong{color:var(--fg)}
+
+/* detalle */
+.hero{position:relative;margin-inline:calc(-1 * max(16px, env(safe-area-inset-left, 0px)));margin-top:calc(-1 * env(safe-area-inset-top, 0px));height:min(46vh,380px);min-height:260px;overflow:hidden;background:var(--surface-2)}
+.hero img{width:100%;height:100%;object-fit:cover;display:block}
+.hero-ill{width:100%;height:100%;display:grid;place-items:center;background:radial-gradient(circle at 50% 60%,var(--surface-3),var(--surface) 70%)}
+.hero.g .hero-ill{background:radial-gradient(circle at 50% 60%,#4a2a20,var(--surface) 70%)}
+.hero.c .hero-ill{background:radial-gradient(circle at 50% 60%,#203d2c,var(--surface) 70%)}
+.hero-ill svg{width:min(52%,220px);height:auto}
+.hero-bar{position:absolute;inset:0 0 auto;display:flex;align-items:center;gap:8px;
+  padding:calc(10px + env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) 30px max(12px, env(safe-area-inset-left, 0px));background:linear-gradient(rgba(0,0,0,.6),transparent)}
+.hero-bar h1{flex:1;min-width:0;font-size:1.45rem;font-weight:800;color:#fff;text-transform:uppercase;letter-spacing:.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 6px rgba(0,0,0,.5)}
+.on-photo{color:#fff}
+.on-photo:hover{background:rgba(255,255,255,.12)}
+.photo-btn{position:absolute;right:max(14px, env(safe-area-inset-right, 0px));bottom:14px;display:inline-flex;gap:6px;align-items:center;background:rgba(15,19,17,.78);color:#fff;border-radius:999px;padding:8px 14px;font:700 .88rem var(--f-body);cursor:pointer;backdrop-filter:blur(6px)}
+.photo-btn svg{width:20px;height:20px}
+.photo-btn:focus-within{outline:2px solid var(--accent)}
+.tabs{display:flex;overflow-x:auto;scrollbar-width:none;margin-inline:calc(-1 * max(16px, env(safe-area-inset-left, 0px)));padding-inline:max(8px, env(safe-area-inset-left, 0px));background:var(--surface);border-bottom:1px solid var(--line);
+  position:sticky;top:env(safe-area-inset-top, 0px);z-index:15}
+.tabs::-webkit-scrollbar{display:none}
+.tabs button{all:unset;cursor:pointer;padding:14px 14px 12px;font:700 .92rem var(--f-body);text-transform:uppercase;letter-spacing:.03em;color:var(--muted);border-bottom:3px solid transparent;white-space:nowrap}
+.tabs button[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--fg)}
+.panel{display:grid;gap:18px;padding-top:4px}
+.info-top{display:flex;justify-content:space-between;align-items:center;gap:8px;color:var(--muted);font-size:1.05rem}
+.status{font-weight:700;color:var(--ok)}
+.status.inc{color:var(--accent-ink)}
+.status.warn{color:var(--warn)}
+.info-name{display:flex;align-items:center;gap:14px}
+.info-name .avatar{width:64px;height:64px;border-radius:50%;border:3px solid var(--surface-3);background:transparent}
+.info-name h2{font-size:1.8rem;text-transform:uppercase;overflow-wrap:anywhere}
+.info{display:grid;gap:14px;margin:0}
+.info div{display:grid;gap:0}
+.info dt{color:var(--muted);font-size:.95rem}
+.info dd{margin:0;font-size:1.25rem;font-weight:600}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+.kpi{background:var(--surface);border-radius:16px;padding:12px 14px;display:grid;gap:2px}
+.kpi span{font:700 .72rem var(--f-body);text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.kpi b{font:500 1.6rem var(--f-mono);font-variant-numeric:tabular-nums;line-height:1.2}
+.kpi small{color:var(--muted);font-size:.82rem}
+.kpi.hl{background:var(--accent-soft)} .kpi.hl b{color:var(--accent-ink)}
+.notes{background:var(--surface);border-radius:14px;padding:12px 14px;color:var(--muted);white-space:pre-wrap}
+.filters{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}
+.filters::-webkit-scrollbar{display:none}
+.chipf{all:unset;cursor:pointer;border:1px solid var(--line);border-radius:999px;padding:6px 14px;font:700 .85rem var(--f-body);white-space:nowrap;color:var(--muted)}
+.chipf[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+
+/* línea de tiempo */
+.tline{list-style:none;margin:0;padding:0;display:grid}
+.tl-item{display:grid;grid-template-columns:22px 1fr;gap:12px;position:relative;padding-bottom:16px}
+.tl-item::before{content:"";position:absolute;left:10px;top:20px;bottom:0;width:2px;background:var(--line)}
+.tl-item:last-child::before{display:none}
+.tl-dot{width:22px;height:22px;border-radius:50%;border:3px solid var(--muted);background:var(--bg);margin-top:2px}
+.tl-item.vit .tl-dot{border-color:var(--vit)} .tl-item.vac .tl-dot{border-color:var(--vac)} .tl-item.ali .tl-dot{border-color:var(--ali)} .tl-item.man .tl-dot{border-color:var(--man)} .tl-item.inc .tl-dot{border-color:var(--accent)}
+.tl-item.st-done .tl-dot{background:var(--surface-3);border-color:var(--surface-3)}
+.tl-item.st-now .tl-dot{background:var(--accent);border-color:var(--accent);box-shadow:0 0 0 5px rgba(245,181,68,.2)}
+.tl-body{background:var(--surface);border-radius:14px;padding:10px 14px;display:grid;gap:3px;min-width:0}
+.tl-item.st-done .tl-body{opacity:.55}
+.tl-item.st-now .tl-body{outline:1.5px solid var(--accent)}
+.tl-top{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.ttype{font:800 .7rem var(--f-body);text-transform:uppercase;letter-spacing:.06em}
+.ttype.vit{color:var(--vit)} .ttype.vac{color:var(--vac)} .ttype.ali{color:var(--ali)} .ttype.man{color:var(--man)} .ttype.inc{color:var(--accent-ink)}
+.badge{font:700 .72rem var(--f-body);background:var(--surface-3);border-radius:6px;padding:1px 7px}
+.badge.now{background:var(--accent);color:#1f1606}
+.badge.done{background:transparent;color:var(--muted);border:1px solid var(--line)}
+.tl-body strong{font-size:1.02rem}
+.tl-body .muted{color:var(--muted);font-size:.9rem}
+.tl-date{font:500 .8rem var(--f-mono);color:var(--muted)}
+
+/* historia */
+.bars{display:grid;gap:10px}
+.brow{background:var(--surface);border-radius:14px;padding:12px 14px;display:grid;gap:6px;cursor:pointer}
+.brow-top{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.brow-top b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.brow-top span{font:500 .85rem var(--f-mono);color:var(--muted);white-space:nowrap}
+.track{height:10px;border-radius:6px;background:var(--surface-3);overflow:hidden}
+.track i{display:block;height:100%;border-radius:6px;background:var(--accent)}
+.brow.g .track i{background:var(--hen)} .brow.c .track i{background:var(--quail)}
+.brow small{color:var(--muted);font-size:.82rem}
+
+/* formulario */
+.form{display:grid;gap:16px}
+.fcard{background:var(--surface);border-radius:18px;padding:16px;display:grid;gap:12px}
+.fcard h3{font-size:1rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-family:var(--f-body);font-weight:800}
+.form .field input,.form .field select,.form .field textarea{background:var(--bg);border-color:var(--line);font-size:1.05rem;padding:11px 12px;border-radius:12px}
+.form-actions{position:sticky;bottom:calc(84px + env(safe-area-inset-bottom, 0px));display:flex;gap:10px;flex-wrap:wrap;align-items:center;background:var(--bg);padding-block:10px}
+.btn{border-radius:12px;padding:12px 20px;font-size:1rem}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#1f1606}
+
+/* hoja de confirmación y aviso */
+.sheet-bg{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.6);display:grid;align-items:end;justify-items:center}
+.sheet{background:var(--surface);border-radius:22px 22px 0 0;width:min(560px,100%);display:grid;gap:12px;
+  padding:22px max(20px, env(safe-area-inset-right, 0px)) calc(22px + env(safe-area-inset-bottom, 0px)) max(20px, env(safe-area-inset-left, 0px))}
+.sheet p{color:var(--muted)}
+.sheet .actions{justify-content:flex-end}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(96px + env(safe-area-inset-bottom, 0px));z-index:60;background:var(--fg);color:var(--bg);border-radius:12px;padding:10px 16px;font-weight:700;max-width:calc(100% - 32px)}
+.store-note{color:var(--muted);font-size:.85rem;text-align:center}
+
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+/* ---------- fotos de aves ---------- */
+.species-pick{display:flex;gap:12px;overflow-x:auto;padding-bottom:6px;scrollbar-width:none;margin-inline:calc(-1 * max(16px, env(safe-area-inset-left, 0px)));padding-inline:max(16px, env(safe-area-inset-left, 0px));scroll-snap-type:x mandatory}
+.species-pick::-webkit-scrollbar{display:none}
+.bird{all:unset;box-sizing:border-box;cursor:pointer;position:relative;border-radius:18px;overflow:hidden;background:var(--surface);border:2px solid var(--line);aspect-ratio:4/3.4;display:block;scroll-snap-align:start;max-width:100%}
+.species-pick .bird{flex:0 0 168px}
+.bird img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .3s}
+.bird:hover img{transform:scale(1.05)}
+.bird-txt{position:absolute;inset:auto 0 0 0;padding:28px 10px 9px;background:linear-gradient(transparent,rgba(0,0,0,.85));display:grid;gap:0;color:#fff}
+.bird-txt b{font:800 .98rem var(--f-display);line-height:1.15}
+.bird-txt small{font-size:.75rem;opacity:.85}
+.bird[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 3px rgba(245,181,68,.35)}
+.bird[aria-pressed="true"]::after{content:"✓";position:absolute;top:8px;right:8px;width:24px;height:24px;border-radius:50%;background:var(--accent);color:#1f1606;font-weight:800;display:grid;place-items:center;font-size:.85rem}
+.bird:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.bird-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+.bird-grid > *{min-width:0}
+.grp{font:800 .8rem var(--f-body);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-top:4px}
+.form .bird-grid{grid-template-columns:repeat(auto-fill,minmax(110px,1fr))}
+.form .bird-txt small{display:none}
+.form .bird-txt b{font-size:.85rem}
+
+.avatar img{width:100%;height:100%;object-fit:cover}
+.avatar.round{width:56px;height:56px;border-radius:50%;border:3px solid var(--surface-3)}
+.task{grid-template-columns:6px auto 1fr auto}
+.task:not(:has(.task-img)){grid-template-columns:6px 1fr auto}
+.task-img{width:42px;height:42px;border-radius:12px;object-fit:cover;flex:none}
+.brow{display:flex;gap:12px;align-items:center}
+.brow-body{flex:1;min-width:0;display:grid;gap:6px}
+.track i{background:linear-gradient(90deg,var(--accent),#ff8a65)}
+
+/* ---------- resumen de incubación (estilo tarjeta) ---------- */
+.incsum{display:grid;grid-template-columns:1fr 1fr;gap:14px;background:linear-gradient(160deg,var(--surface-3),var(--surface));border:1px solid var(--line);border-radius:20px;padding:16px}
+.incsum-l,.incsum-r{display:grid;gap:12px;align-content:start;min-width:0}
+.incsum-r{text-align:center}
+.incsum-sp{display:flex;align-items:center;gap:10px;min-width:0}
+.incsum-sp .avatar.round{width:46px;height:46px}
+.incsum-sp b{font:800 1.1rem var(--f-display);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kv{display:grid;gap:0}
+.kv span{color:var(--muted);font-size:.9rem;font-weight:600}
+.kv b{font:800 1.2rem var(--f-display)}
+.kv b.big{font-size:2.2rem}
+.kv small{font-weight:700}
+.hatch-pill{display:flex;align-items:center;gap:10px;background:#fff3dc;color:#2a1f08;border-radius:999px;padding:10px 16px;font-size:.98rem}
+.hatch-pill .ico{color:#f08a24;flex:none}
+.daychips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding-bottom:4px}
+.daychips::-webkit-scrollbar{display:none}
+.dchip{all:unset;cursor:pointer;flex:none;display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--line);border-radius:12px;padding:9px 14px;font:700 .95rem var(--f-body);color:var(--muted)}
+.dchip .ico{width:18px;height:18px}
+.dchip.done{color:var(--fg)}
+.dchip.now{border-color:var(--accent);color:var(--accent-ink)}
+.dchip[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.dchip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.daycard{background:var(--surface);border-left:4px solid var(--muted);border-radius:14px;padding:14px 16px;display:grid;gap:6px}
+.daycard.cur{background:#e8f5e9;color:#16301c;border-left-color:var(--ok)}
+.daycard.cur .daycard-top span{color:#3b5a42}
+.daycard-top{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.daycard-top b{font:800 1.1rem var(--f-display)}
+.daycard-top span{color:var(--muted);font-size:.9rem}
+.daycard p{font-size:1.02rem}
+
+/* ---------- calendario ---------- */
+.cal-day{display:grid;grid-template-columns:56px 1fr;gap:12px;align-items:start}
+.cal-day > *{min-width:0}
+.cal-date{background:var(--surface-2);border-radius:14px;padding:8px 0;text-align:center;display:grid}
+.cal-date b{font:800 1.5rem var(--f-display);line-height:1}
+.cal-date span{font-size:.72rem;color:var(--muted);text-transform:uppercase;font-weight:700}
+.cal-day.is-today .cal-date{background:var(--accent);color:#1f1606}
+.cal-day.is-today .cal-date span{color:#1f1606}
+
+/* ---------- guías ---------- */
+.guide-hero{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:16px;align-items:center;background:var(--surface);border-radius:22px;overflow:hidden}
+.guide-hero img{width:100%;height:100%;min-height:220px;object-fit:cover;display:block}
+.guide-hero > div{padding:16px 16px 16px 0;display:grid;gap:10px;justify-items:start}
+@media (max-width:600px){.guide-hero{grid-template-columns:1fr}.guide-hero > div{padding:0 16px 16px}.guide-hero img{min-height:0;aspect-ratio:4/3}}
+.gsec{display:grid;gap:12px}
+.gsec h3{font-size:1.2rem}
+.glist{margin:0;padding-left:1.1em;display:grid;gap:6px}
+.glist li::marker{color:var(--accent)}
+.credits{font-size:.78rem;color:var(--muted);display:grid;gap:4px}
+.credits ul{margin:0;padding-left:1.1em;display:grid;gap:2px}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#f5b544"/></linearGradient></defs></svg>
+<div class="wrap">
+<header class="appbar">
+  <button type="button" class="icon-btn" id="btnBack" data-nav="back" aria-label="Volver" hidden><svg class="ico" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+  <svg class="logo" id="appLogo" viewBox="0 0 40 40" aria-hidden="true"><path d="M20 4c7 0 13 11 13 19a13 13 0 0 1-26 0C7 15 13 4 20 4z" fill="#f2ead9"/><path d="M9 22l4 3 3.5-3 3.5 3 3.5-3 3.5 3 4-3" stroke="#f5b544" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  <h1 id="appTitle">Mi Granja</h1>
+  <span class="sync-dot" id="syncDot" title="Conectando…"></span>
+</header>
+
+<!-- INICIO -->
+<div class="view" id="v-inicio">
+  <div class="today">
+    <div class="today-top"><strong>Hoy</strong><span id="hoyFecha"></span></div>
+    <div class="mini-kpis" id="miniKpis"></div>
+  </div>
+  <h2 class="vh">Elige un ave para crear un lote</h2>
+  <div class="species-pick" id="pickInicio"></div>
+  <h2 class="vh">Tareas de hoy</h2>
+  <ul class="tasks" id="tareasHoy"></ul>
+  <h2 class="vh">Mis lotes</h2>
+  <div class="cards" id="lotesActivos"></div>
+  <p class="store-note" id="storeNote">Conectando con tu registro…</p>
+</div>
+
+<!-- CALENDARIO -->
+<div class="view" id="v-calendario" hidden>
+  <p class="vh-sub" style="margin-top:0">Próximas 3 semanas de todos tus lotes.</p>
+  <div class="cards" id="calList"></div>
+</div>
+
+<!-- HISTORIA -->
+<div class="view" id="v-historia" hidden>
+  <h2 class="vh">Rendimiento de tus incubaciones</h2>
+  <div class="kpis" id="kpis"></div>
+  <h2 class="vh">Eclosión por lote</h2>
+  <div class="bars" id="barsLotes"></div>
+  <h2 class="vh">Por tipo de incubadora</h2>
+  <div class="bars" id="barsTipo"></div>
+</div>
+
+<!-- GUÍAS -->
+<div class="view" id="v-guias" hidden>
+  <div id="guidePick" style="display:grid;gap:10px"></div>
+  <div id="guideBody" style="display:grid;gap:22px;scroll-margin-top:70px"></div>
+  <div class="credits"><span>Fotos de Wikimedia Commons:</span><ul id="creditos"></ul></div>
+</div>
+
+<!-- DETALLE -->
+<div class="view" id="v-detalle" hidden></div>
+
+<!-- FORMULARIO -->
+<div class="view" id="v-form" hidden>
+  <form class="form" id="loteForm" novalidate>
+    <div class="fcard"><h3>Especie</h3>
+      <div class="bird-grid" id="pickForm" role="group" aria-label="Especie"></div>
+      <p class="muted" id="formSpInfo"></p>
+    </div>
+    <input type="hidden" id="lEspecie" value="ponedora">
+    <div class="fcard"><h3>Incubadora</h3>
+      <div class="fgrid">
+        <div class="field"><label for="lNombre">Nombre del lote</label><input type="text" id="lNombre" placeholder="Ej. Codorniz lote 14"></div>
+        <div class="field"><label for="lTipo">Tipo de incubadora</label>
+          <select id="lTipo">
+            <option>Automática (volteo automático)</option>
+            <option>Semiautomática (volteo con palanca)</option>
+            <option>Manual (volteo a mano)</option>
+            <option>Casera / artesanal</option>
+            <option>Gallina clueca (natural)</option>
+            <option>Pata o pava clueca (natural)</option>
+          </select></div>
+        <div class="field"><label for="lMarca">Marca o modelo</label><input type="text" id="lMarca" placeholder="Ej. 56 huevos con ventilador"></div>
+        <div class="field"><label for="lCapacidad">Capacidad (huevos)</label><input type="number" id="lCapacidad" min="0" inputmode="numeric"></div>
+      </div>
+    </div>
+    <div class="fcard"><h3>Huevos</h3>
+      <div class="fgrid">
+        <div class="field"><label for="lInicio">Fecha en que los metiste</label><input type="date" id="lInicio" required></div>
+        <div class="field"><label for="lHora">Hora</label><input type="time" id="lHora"></div>
+        <div class="field"><label for="lHuevos">Huevos metidos</label><input type="number" id="lHuevos" min="1" inputmode="numeric" required></div>
+        <div class="field"><label for="lFertiles">Fértiles en la ovoscopía</label><input type="number" id="lFertiles" min="0" inputmode="numeric"><span class="hint">Opcional</span></div>
+      </div>
+    </div>
+    <div class="fcard"><h3>Nacimiento</h3>
+      <div class="fgrid">
+        <div class="field"><label for="lNacidos">Nacidos</label><input type="number" id="lNacidos" min="0" inputmode="numeric"><span class="hint">Vacío si aún incuban</span></div>
+        <div class="field"><label for="lFechaNac">Fecha real de nacimiento</label><input type="date" id="lFechaNac"><span class="hint">Vacía = fecha estimada</span></div>
+        <div class="field"><label for="lMuertes">Muertes después de nacer</label><input type="number" id="lMuertes" min="0" inputmode="numeric"></div>
+      </div>
+    </div>
+    <div class="fcard"><h3>Notas</h3>
+      <div class="field"><label for="lNotas" class="sr">Notas</label><textarea id="lNotas" placeholder="Temperatura, humedad, problemas, de dónde salieron los huevos…"></textarea></div>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn primary" id="btnGuardar">Guardar lote</button>
+      <button type="button" class="btn" data-nav="back">Cancelar</button>
+      <span class="status-msg" id="formMsg" role="status"></span>
+    </div>
+  </form>
+</div>
+</div>
+
+<nav class="bnav" aria-label="Navegación principal">
+  <button type="button" data-nav="inicio" aria-current="page"><svg class="ico" viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/></svg>Inicio</button>
+  <button type="button" data-nav="calendario"><svg class="ico" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>Calendario</button>
+  <button type="button" class="fab" data-new="ponedora" aria-label="Nuevo lote"><svg class="ico" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+  <button type="button" data-nav="historia"><svg class="ico" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.3-5.7"/><path d="M4 4v4h4"/><path d="M12 8v4l3 2"/></svg>Historia</button>
+  <button type="button" data-nav="guias"><svg class="ico" viewBox="0 0 24 24"><path d="M5 4h9a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h9"/></svg>Guías</button>
+</nav>
+
+<div class="sheet-bg" id="confirmBg" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="confirmTxt">
+    <h3 id="confirmTxt">¿Borrar este lote?</h3>
+    <p>Se borra el lote con todos sus datos. No se puede deshacer.</p>
+    <div class="actions"><button type="button" class="btn" data-confirm="no">Cancelar</button><button type="button" class="btn danger" data-confirm="yes">Borrar lote</button></div>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+const IMG={"ponedora": "img/ponedora.jpg", "engorde": "img/engorde.jpg", "criolla": "img/criolla.jpg", "codorniz": "img/codorniz.jpg", "pavo": "img/pavo.jpg", "pekin": "img/pekin.jpg", "criollo": "img/criollo.jpg", "ganso": "img/ganso.jpg", "guinea": "img/guinea.jpg", "faisan": "img/faisan.jpg", "perdiz": "img/perdiz.jpg", "paloma": "img/paloma.jpg"};
+const CREDITS={"ponedora": {"title": "File:Isa cs layers brownJPG.jpg", "artist": "Mercoaves", "license": "CC BY-SA 4.0", "page": "https://commons.wikimedia.org/wiki/File:Isa_cs_layers_brownJPG.jpg"}, "engorde": {"title": "File:Broilers Australia June 2018.jpg", "artist": "Animals Uncovered", "license": "CC BY 4.0", "page": "https://commons.wikimedia.org/wiki/File:Broilers_Australia_June_2018.jpg"}, "criolla": {"title": "File:Male and female chicken sitting together.jpg", "artist": "Andrei Niemimäki from Turku, Finland", "license": "CC BY-SA 2.0", "page": "https://commons.wikimedia.org/wiki/File:Male_and_female_chicken_sitting_together.jpg"}, "codorniz": {"title": "File:Japanese Quail.jpg", "artist": "Ingrid Taylar", "license": "CC BY 2.0", "page": "https://commons.wikimedia.org/wiki/File:Japanese_Quail.jpg"}, "pavo": {"title": "File:Male north american turkey supersaturated.jpg", "artist": "photo taken by Lupin on en:Wikipedia", "license": "CC BY-SA 3.0", "page": "https://commons.wikimedia.org/wiki/File:Male_north_american_turkey_supersaturated.jpg"}, "criollo": {"title": "File:MuscovyDuck.jpg", "artist": "", "license": "CC BY-SA 3.0", "page": "https://commons.wikimedia.org/wiki/File:MuscovyDuck.jpg"}, "guinea": {"title": "File:Reichenow's helmeted guineafowl (Numida meleagris reichenowi) Serengeti.jpg", "artist": "Charles J. Sharp", "license": "CC BY-SA 4.0", "page": "https://commons.wikimedia.org/wiki/File:Reichenow%27s_helmeted_guineafowl_(Numida_meleagris_reichenowi)_Serengeti.jpg"}, "faisan": {"title": "File:Phasianus colchicus Oulu 20200524 02.jpg", "artist": "Estormiz", "license": "CC0", "page": "https://commons.wikimedia.org/wiki/File:Phasianus_colchicus_Oulu_20200524_02.jpg"}, "perdiz": {"title": "File:Chukarhuhn Weltvogelpark Walsrode 2010.jpg", "artist": "Olaf Oliviero Riemer", "license": "CC BY-SA 3.0", "page": "https://commons.wikimedia.org/wiki/File:Chukarhuhn_Weltvogelpark_Walsrode_2010.jpg"}, "paloma": {"title": "File:King pigeons.jpg", "artist": "Graham Manning", "license": "CC BY-SA 3.0", "page": "https://commons.wikimedia.org/wiki/File:King_pigeons.jpg"}, "pekin": {"title": "File:Pekin duck in Buddha park lake, Eluru.jpg", "artist": "iMahesh", "license": "CC BY-SA 4.0", "page": "https://commons.wikimedia.org/wiki/File:Pekin_duck_in_Buddha_park_lake,_Eluru.jpg"}, "ganso": {"title": "File:Embden Goose (Lake Pflugerville, TX).jpg", "artist": "MealycupSage", "license": "CC0", "page": "https://commons.wikimedia.org/wiki/File:Embden_Goose_(Lake_Pflugerville,_TX).jpg"}};
+// ---------- especies ----------
+// inc: parámetros de incubación · temp: temperatura de crianza por edad (límite en días) · feed/vac/man: [día, duración o fin, título, detalle]
+const POLLITO_AGUA=[[7,.03],[14,.05],[21,.07],[28,.09],[56,.12],[112,.16],[1e9,.25]];
+const POLLITO_COMIDA=[[7,10],[14,18],[21,26],[28,33],[56,45],[112,65],[1e9,110]];
+const GALLINA_TEMP=[[7,'32–35 °C'],[14,'29–32 °C'],[21,'26–29 °C'],[28,'23–26 °C'],[42,'21 °C'],[1e9,'18–24 °C']];
+const GALLINA_INC={t:'37,5–37,7 °C',h:'45–55 %',tN:'37,0–37,2 °C',hN:'65–75 %',ovos:[7,14]};
+const GALLINA_VAC=[[0,1,'Marek','Subcutánea en el cuello el día 1. Si no puedes aplicarla, compra pollitas ya vacunadas.'],[7,4,'Newcastle + Bronquitis','Una gota en ojo o nariz (días 7–10).'],[12,3,'Gumboro','Agua de bebida (días 12–14).'],[21,4,'Refuerzo Gumboro','Agua de bebida.'],[28,3,'Refuerzo Newcastle + Bronquitis','Ojo o agua.'],[42,14,'Viruela aviar','Punción en el ala (semanas 6–8). Revisa la costra 7–10 días después.'],[112,14,'Newcastle oleosa (+ Coriza si hay casos)','Subcutánea o en la pechuga (semanas 16–18).'],[210,1,'Newcastle La Sota','Agua de bebida, cada 3 meses.',90]];
+
+const SPECIES={
+  ponedora:{name:'Gallina ponedora',group:'Gallinas',fin:'huevo',days:21,lock:18,inc:GALLINA_INC,
+    temp:GALLINA_TEMP,cria:35,meta:[126,'Inicio de postura'],deworm:true,
+    dens:'20–25 pollitas/m² en las semanas 1–2 y 12–15/m² en las semanas 3–4. Adultas: 3–4 por m² dentro del gallinero.',
+    luz:'23 h los días 1–3, bajar a 16 h hacia la semana 4 y dejar 10–12 h fijas en la recría. En postura, 14–16 h fijas.',
+    cama:'Viruta gruesa o cascarilla de arroz de 5–8 cm. No uses periódico liso ni aserrín fino.',
+    feed:[[0,42,'Iniciador 18–20 % proteína','Migaja. Energía 2.850–2.950 kcal/kg.'],[42,105,'Crecimiento 15–16 %','Mezcla con el iniciador 3–4 días para el cambio.'],[105,126,'Pre-postura 15–16 %, Ca 2–2,5 %','Hasta ver el primer huevo.'],[126,null,'Postura 16–17 %, Ca 3,8–4,2 % + conchilla aparte','100–120 g por ave al día. Granos y sobras: máximo 10 %.']],
+    vac:GALLINA_VAC,man:[],
+    adult:{aloj:'Gallinero de 0,3–0,4 m² por ave más patio de 2–4 m² por ave. Perchas de 20–25 cm por ave a 60–90 cm del suelo. Un nidal de 30×30×35 cm por cada 4–5 gallinas.',prop:'1 gallo por 8–10 gallinas, solo si quieres huevo fértil.',prod:'Postura desde la semana 18–22. Pico de 85–95 % entre las semanas 26 y 30; 250–300 huevos el primer año.',temp:'18–24 °C. Con más de 30 °C baja la postura.'},
+    enf:['Newcastle','Bronquitis infecciosa','Coriza','Viruela aviar','Marek','Coccidiosis','Ácaro rojo y piojos'],
+    tips:['No des alimento de postura antes del primer huevo: el exceso de calcio daña los riñones.','No alargues la luz durante la recría: adelanta la postura y causa prolapsos.','Recoge los huevos 2–3 veces al día para evitar que los picoteen.'],
+    agua:POLLITO_AGUA,comida:POLLITO_COMIDA,espacio:[[14,1/22],[28,1/13],[42,1/10],[1e9,.35]]},
+
+  engorde:{name:'Pollo de engorde',group:'Gallinas',fin:'carne',days:21,lock:18,inc:GALLINA_INC,
+    temp:[[7,'32–33 °C'],[14,'29–30 °C'],[21,'26–27 °C'],[28,'23–24 °C'],[1e9,'20–22 °C']],cria:28,meta:[42,'Edad de sacrificio'],deworm:false,
+    dens:'Hasta 10–12 aves por m² al final, unos 30 kg de peso vivo por m².',
+    luz:'23 h la primera semana. Después 18–20 h con 4–6 h de oscuridad seguidas para que descansen y no sufran muerte súbita.',
+    cama:'Viruta o cascarilla de 8–10 cm. Voltea o cambia la cama húmeda debajo de los bebederos.',
+    feed:[[0,10,'Preiniciador 22–23 %','Migaja. Comida y agua siempre disponibles.'],[10,24,'Crecimiento 20–21 %','Pellet pequeño.'],[24,null,'Finalizador 18–19 %','Retira el alimento 8–10 h antes del sacrificio, el agua no.']],
+    vac:[[0,1,'Marek','Normalmente ya viene aplicada de la incubadora comercial.'],[7,4,'Newcastle + Bronquitis','Ojo o agua de bebida.'],[12,3,'Gumboro','Agua de bebida.'],[21,3,'Refuerzo Newcastle + Gumboro','Agua de bebida.']],
+    man:[[35,8,'Pesar una muestra de 10 aves','Si pesan 2,2–2,8 kg ya están listos.']],
+    adult:{aloj:'Galpón techado con malla a los lados y cortinas para controlar el aire.',prop:'No se usan para reproducción.',prod:'2,2–2,8 kg de peso vivo a los 35–42 días. Comen 1,6–1,8 kg de alimento por cada kg que ganan.',temp:'18–24 °C. Sufren mucho con más de 30 °C.'},
+    enf:['Ascitis y muerte súbita por crecimiento rápido','Gumboro','Newcastle','Coccidiosis','Problemas de patas'],
+    tips:['No los dejes pasar de 7–8 semanas: aumentan los problemas de patas y corazón.','En calor, agua fresca con electrolitos y no les des alimento en las horas más calientes.'],
+    agua:[[7,.05],[14,.1],[21,.16],[28,.22],[35,.27],[1e9,.32]],comida:[[7,20],[14,50],[21,85],[28,120],[35,150],[1e9,180]],espacio:[[14,1/30],[28,1/18],[1e9,1/11]]},
+
+  criolla:{name:'Gallina criolla',group:'Gallinas',fin:'doble propósito',days:21,lock:18,inc:GALLINA_INC,
+    temp:GALLINA_TEMP,cria:35,meta:[154,'Inicio de postura'],deworm:true,
+    dens:'Semilibre: corral de noche con 3–4 aves por m² y patio o potrero de día con 5–10 m² por ave.',
+    luz:'Luz natural. Si quieres más huevos, completa hasta 14 h de luz en postura.',
+    cama:'Viruta o cascarilla en el gallinero; patio con sombra y pasto.',
+    feed:[[0,56,'Iniciador 18–20 %','Migaja.'],[56,140,'Crecimiento 15–16 % + pastoreo','Desde aquí puedes dar maíz, verduras y pasto hasta un 30 % de la dieta.'],[140,null,'Postura 16 %, Ca 3,5–4 % + conchilla','Pastoreo más 80–100 g de concentrado al día.']],
+    vac:GALLINA_VAC,man:[[56,7,'Separar los machos para engorde','Engórdalos aparte hasta las 12–16 semanas.']],
+    adult:{aloj:'Gallinero con perchas y nidales, más patio cercado con sombra.',prop:'1 gallo por 8–10 gallinas.',prod:'Postura desde la semana 20–26; 150–200 huevos al año. Machos de carne a las 12–16 semanas con 1,8–2,5 kg.',temp:'Muy resistentes al calor y al manejo rústico.'},
+    enf:['Newcastle','Viruela aviar','Parásitos internos','Piojos y ácaros','Coccidiosis'],
+    tips:['Son buenas cluecas: una gallina puede incubar 10–15 huevos.','Desparasita cada 3–4 meses: al andar en el suelo se infestan más.'],
+    agua:POLLITO_AGUA,comida:[[7,10],[14,18],[21,26],[28,33],[56,45],[112,65],[1e9,90]],espacio:[[14,1/22],[28,1/13],[42,1/10],[1e9,.35]]},
+
+  codorniz:{name:'Codorniz japonesa',group:'Codornices y caza',fin:'huevo',days:17,lock:14,inc:{t:'37,5–37,7 °C',h:'45–55 %',tN:'37,0–37,2 °C',hN:'65–70 %',ovos:[6]},
+    temp:[[7,'35–37 °C'],[14,'32–34 °C'],[21,'29–31 °C'],[28,'26–28 °C'],[35,'22–24 °C'],[1e9,'18–25 °C']],cria:28,meta:[42,'Inicio de postura'],deworm:false,
+    dens:'100–150 por m² en las semanas 1–2 y 60–80 por m² en las semanas 3–4. Adultas: 150–180 cm² por ave en jaula.',
+    luz:'24 h la primera semana, luego 16–18 h de luz suave. En postura, 14–16 h. La luz fuerte provoca picaje.',
+    cama:'Papel toalla o malla antideslizante los primeros 3–5 días (si comen viruta se impactan); después viruta.',
+    feed:[[0,21,'Iniciador 24–28 %','Molido fino los primeros días. Si no hay de codorniz, usa iniciador de pavo.'],[21,35,'Crecimiento 20–22 %',''],[35,null,'Postura 20–22 %, Ca 2,5–3,5 % + conchilla fina','25–30 g por ave al día. El alimento de gallina no les alcanza.']],
+    vac:[[10,5,'Newcastle (solo zona con casos)','Ojo o agua (días 10–14).'],[35,3,'Refuerzo Newcastle (si aplica)','']],
+    man:[[0,10,'Canicas en el bebedero','Se ahogan con mucha facilidad.'],[21,7,'Separar sexos y pasar a jaulas','Macho: pecho canela liso. Hembra: pecho crema con motas.']],
+    adult:{aloj:'Jaula de solo 20–25 cm de alto (o techo de tela) con piso inclinado 7–8 % para que el huevo ruede.',prop:'1 macho por 3–4 hembras.',prod:'Postura desde la semana 6–7; 250–300 huevos al año. Carne: 150–200 g a las 6–8 semanas.',temp:'18–25 °C.'},
+    enf:['Enteritis ulcerativa','Coccidiosis','Ahogamiento en bebederos','Picaje'],
+    tips:['Nunca las críes con gallinas: les contagian micoplasma y enteritis ulcerativa.','Al asustarse saltan hacia arriba: por eso el techo bajo o de tela.'],
+    agua:[[7,.01],[14,.02],[21,.03],[35,.04],[1e9,.05]],comida:[[7,5],[14,9],[21,14],[35,20],[1e9,27]],espacio:[[14,1/120],[28,1/70],[1e9,.0165]]},
+
+  pavo:{name:'Pavo',group:'Pavos y guineas',fin:'carne',days:28,lock:25,inc:{t:'37,5 °C',h:'50–55 %',tN:'37,0–37,2 °C',hN:'65–75 %',ovos:[7,14]},
+    temp:[[7,'35–37 °C'],[14,'32–34 °C'],[21,'29–31 °C'],[28,'26–28 °C'],[42,'23–24 °C'],[56,'21 °C'],[1e9,'15–24 °C']],cria:42,meta:[112,'Edad de sacrificio (hembras)'],deworm:true,
+    dens:'15–20 por m² en las semanas 1–2 y 8–10 por m² hasta la semana 6. Adultos: 0,5–0,75 m² las hembras y 1 m² los machos.',
+    luz:'24 h los días 1–3, luego 16–18 h. La luz roja reduce el picaje.',
+    cama:'Viruta gruesa de 8–10 cm. Si no encuentran el alimento, comen cama.',
+    feed:[[0,28,'Iniciador de pavo 26–28 %','Migaja sobre bandejas o papel para que lo encuentren.'],[28,56,'Iniciador II 24–26 %',''],[56,84,'Crecimiento 20–22 %',''],[84,null,'Finalizador 16–18 %','Puedes añadir maíz y forraje verde.']],
+    vac:[[10,5,'Newcastle','Ojo o agua (días 10–14).'],[28,3,'Refuerzo Newcastle','Agua de bebida.'],[56,14,'Viruela aviar','Punción en el ala (semanas 8–10).'],[70,7,'Cólera aviar (si hay casos en tu zona)','Inactivada, subcutánea.']],
+    man:[[0,7,'Enseñar a comer y beber','Golpea suave el comedero con el dedo y pon canicas de colores en el agua. Los pavipollos tardan en aprender.']],
+    adult:{aloj:'Galpón alto con perchas a 60–80 cm y patio con sombra.',prop:'1 macho por 8–10 hembras.',prod:'Hembras de 6–8 kg a las 14–16 semanas; machos de 10–15 kg a las 18–22 semanas. 60–100 huevos al año.',temp:'15–24 °C. Sufren mucho con calor y humedad.'},
+    enf:['Cabeza negra (histomoniasis)','Cólera aviar','Newcastle','Viruela aviar','Problemas de patas'],
+    tips:['No los críes en el mismo terreno que gallinas: ellas portan el parásito de la cabeza negra.','Los pavipollos se mojan y se enfrían fácil: usa bebederos que no derramen.'],
+    agua:[[7,.04],[14,.08],[28,.15],[56,.3],[1e9,.6]],comida:[[7,15],[14,30],[28,60],[56,120],[84,200],[1e9,300]],espacio:[[14,1/18],[42,1/9],[1e9,.75]]},
+
+  pekin:{name:'Pato Pekín',group:'Patos y gansos',fin:'carne',days:28,lock:25,inc:{t:'37,5 °C',h:'55–60 %',tN:'37,0 °C',hN:'70–80 %',ovos:[7,14],cool:10},
+    temp:[[7,'30–32 °C'],[14,'27–29 °C'],[21,'24–26 °C'],[1e9,'15–25 °C']],cria:21,meta:[49,'Edad de sacrificio'],deworm:false,
+    dens:'20–25 por m² la primera semana y 10–12 por m² en la semana 3. Adultos: 0,3–0,5 m² bajo techo más patio.',
+    luz:'23 h la primera semana, luego 16–18 h.',
+    cama:'Viruta gruesa. Ensucian mucho el agua: pon el bebedero sobre una rejilla con drenaje.',
+    feed:[[0,14,'Iniciador 20–22 % + niacina','Pellet pequeño o migaja húmeda. Añade niacina (vitamina B3): 100–150 mg por litro de agua o levadura de cerveza.'],[14,35,'Crecimiento 16–18 %',''],[35,null,'Engorde 15–16 %','Hasta el sacrificio.']],
+    vac:[[28,3,'Cólera aviar (si hay casos)','Según tu veterinario.']],
+    man:[[0,21,'Agua honda solo para la cabeza','Necesitan meter la cabeza para limpiarse ojos y narinas, pero no deben nadar hasta la semana 3–4.'],[28,7,'Dar acceso a estanque o piscina','Ya tienen plumas impermeables.']],
+    adult:{aloj:'Refugio seco con cama y patio con estanque o piscina. Un nidal por cada 4 patas.',prop:'1 macho por 5–6 hembras.',prod:'Carne: 3–3,5 kg a las 7–8 semanas. 150–200 huevos al año.',temp:'10–25 °C, con sombra y agua.'},
+    enf:['Falta de niacina (patas torcidas)','Hepatitis viral del pato','Cólera aviar','Aspergilosis por cama mohosa','Botulismo por agua estancada'],
+    tips:['No uses agua estancada: causa botulismo.','Si les das alimento de pollo, añade niacina o salen con patas débiles.'],
+    agua:[[7,.08],[14,.2],[21,.35],[1e9,.6]],comida:[[7,25],[14,75],[21,130],[35,180],[1e9,200]],espacio:[[7,1/22],[21,1/11],[1e9,.4]]},
+
+  criollo:{name:'Pato criollo',group:'Patos y gansos',fin:'carne',days:35,lock:31,inc:{t:'37,5 °C',h:'55–60 %',tN:'37,0 °C',hN:'70–80 %',ovos:[7,14,25],cool:10},
+    temp:[[7,'31–33 °C'],[14,'28–30 °C'],[21,'25–27 °C'],[28,'22–24 °C'],[1e9,'15–28 °C']],cria:28,meta:[84,'Edad de sacrificio (machos)'],deworm:true,
+    dens:'15–20 por m² la primera semana y 8–10 por m² a la semana 4. Adultos: 0,5 m² bajo techo más patio.',
+    luz:'24 h la primera semana, luego luz natural.',
+    cama:'Viruta seca. No necesitan estanque: basta un recipiente hondo para la cabeza.',
+    feed:[[0,21,'Iniciador 20 % + niacina','Añade niacina o levadura de cerveza.'],[21,56,'Crecimiento 16–17 %','Más forraje verde.'],[56,null,'Engorde 15 %','Hembras listas a las 10 semanas y machos a las 12.']],
+    vac:[[28,3,'Cólera aviar (si hay casos)','']],
+    man:[[0,14,'Bebedero hondo solo para la cabeza','Sin nadar las primeras 3 semanas.'],[70,7,'Sacrificio de hembras','2–2,5 kg a las 10 semanas.']],
+    adult:{aloj:'Refugio con perchas bajas (les gusta posarse) y patio. Vuelan: corta las plumas de un ala.',prop:'1 macho por 6–8 hembras.',prod:'Hembras de 2–2,5 kg y machos de 4–5 kg. 60–120 huevos al año.',temp:'Muy rústicos y resistentes al calor.'},
+    enf:['Falta de niacina','Cólera aviar','Parásitos internos'],
+    tips:['Es la mejor ave para incubación natural: la pata incuba 15–20 huevos.','Casi no hacen ruido y comen insectos y caracoles.'],
+    agua:[[7,.07],[21,.25],[1e9,.5]],comida:[[7,20],[21,90],[56,150],[1e9,170]],espacio:[[7,1/18],[28,1/9],[1e9,.5]]},
+
+  ganso:{name:'Ganso',group:'Patos y gansos',fin:'carne',days:30,lock:27,inc:{t:'37,4–37,5 °C',h:'50–55 %',tN:'37,0 °C',hN:'75–80 %',ovos:[7,14],cool:10},
+    temp:[[7,'30–32 °C'],[14,'27–29 °C'],[21,'24–26 °C'],[28,'21–23 °C'],[1e9,'5–25 °C']],cria:28,meta:[98,'Edad de sacrificio'],deworm:true,
+    dens:'10–15 por m² la primera semana y 4–6 por m² en la semana 3. Adultos: 1 m² bajo techo más potrero.',
+    luz:'24 h los primeros días, luego luz natural.',
+    cama:'Viruta seca. Desde la primera semana dales pasto tierno picado.',
+    feed:[[0,21,'Iniciador 20–22 % + niacina','Migaja o pellet pequeño.'],[21,56,'Crecimiento 15–16 % + pastoreo','El pasto puede cubrir hasta la mitad de su comida.'],[56,null,'Pastoreo + 150–200 g de concentrado','Engorde final con maíz.']],
+    vac:[[28,3,'Cólera aviar (si hay casos)','']],
+    man:[[7,14,'Pastoreo corto en días soleados','1–2 h en pasto tierno, sin lluvia.']],
+    adult:{aloj:'Refugio seco, potrero con buen pasto y agua para bañarse.',prop:'1 macho por 3–5 hembras.',prod:'Carne: 4–6 kg a las 12–16 semanas. 30–60 huevos al año, en temporada.',temp:'Muy resistentes al frío; necesitan sombra con calor.'},
+    enf:['Falta de niacina','Parásitos internos','Aspergilosis','Cólera aviar'],
+    tips:['Son buenos guardianes: avisan con ruido.','Pueden ser agresivos en época de cría.'],
+    agua:[[7,.1],[21,.4],[1e9,.8]],comida:[[7,30],[21,120],[56,180],[1e9,200]],espacio:[[7,1/12],[21,1/5],[1e9,1]]},
+
+  guinea:{name:'Gallina de Guinea',group:'Pavos y guineas',fin:'carne',days:27,lock:24,inc:{t:'37,5 °C',h:'45–55 %',tN:'37,0 °C',hN:'65–70 %',ovos:[7,14]},
+    temp:[[7,'35–37 °C'],[14,'32–34 °C'],[21,'29–31 °C'],[28,'26–28 °C'],[42,'23–24 °C'],[1e9,'18–30 °C']],cria:42,meta:[105,'Edad de sacrificio'],deworm:true,
+    dens:'20–25 por m² la primera semana y 10–12 por m² en la semana 4. Adultas: 0,5 m² más patio.',
+    luz:'24 h la primera semana, luego 16 h.',
+    cama:'Viruta muy seca: los pichones de guinea mueren fácil con frío y humedad.',
+    feed:[[0,28,'Iniciador 24–28 % (de pavo)',''],[28,56,'Crecimiento 20 %',''],[56,null,'Mantenimiento 16 % + pastoreo','Comen muchos insectos y garrapatas.']],
+    vac:[[10,5,'Newcastle','Ojo o agua.'],[35,3,'Refuerzo Newcastle',''],[56,14,'Viruela aviar','Punción en el ala.']],
+    man:[[0,14,'Canicas en el bebedero','Se ahogan fácil.']],
+    adult:{aloj:'Gallinero con perchas altas y patio. Vuelan: corta un ala o pon malla arriba.',prop:'1 macho por 4–5 hembras.',prod:'Carne: 1,2–1,6 kg a las 12–16 semanas. 80–100 huevos al año en temporada de lluvias.',temp:'Resistentes al calor.'},
+    enf:['Frío y humedad en pichones','Newcastle','Coccidiosis','Parásitos internos'],
+    tips:['Son muy ruidosas: sirven de alarma.','Controlan garrapatas e insectos del patio.'],
+    agua:[[7,.02],[21,.05],[56,.1],[1e9,.15]],comida:[[7,8],[21,20],[56,50],[1e9,80]],espacio:[[14,1/22],[28,1/11],[1e9,.5]]},
+
+  faisan:{name:'Faisán',group:'Codornices y caza',fin:'carne',days:24,lock:21,inc:{t:'37,5 °C',h:'45–55 %',tN:'37,0 °C',hN:'65–70 %',ovos:[7,14]},
+    temp:[[7,'35–37 °C'],[14,'32–34 °C'],[21,'29–31 °C'],[28,'26–28 °C'],[42,'22–24 °C'],[1e9,'10–25 °C']],cria:42,meta:[126,'Edad de sacrificio'],deworm:true,
+    dens:'20–25 por m² la primera semana y 10 por m² en la semana 4. Adultos en voladero: 2–4 m² por ave.',
+    luz:'Luz suave y de poca intensidad para evitar el picaje.',
+    cama:'Viruta. Desde la semana 3, ramas y escondites.',
+    feed:[[0,28,'Iniciador de caza 28–30 %',''],[28,56,'Crecimiento 22–24 %',''],[56,null,'Mantenimiento 16–18 % + granos y verdura','']],
+    vac:[[14,5,'Newcastle (si hay casos)','Ojo o agua.'],[42,3,'Refuerzo Newcastle','']],
+    man:[[21,14,'Enriquecimiento contra picaje','Ramas, pasto colgado y escondites. En el faisán el picaje es muy grave.']],
+    adult:{aloj:'Voladero de 2 m de alto con malla arriba, plantas y refugio.',prop:'1 macho por 6–8 hembras.',prod:'Carne: 1–1,4 kg a las 16–20 semanas. 40–60 huevos por temporada.',temp:'Resistentes al frío; sombra con calor.'},
+    enf:['Picaje y canibalismo','Coccidiosis','Gusano de la tráquea','Newcastle'],
+    tips:['Son nerviosos: entra despacio al voladero.','Cubre parte de la malla con tela o ramas para que se sientan seguros.'],
+    agua:[[7,.02],[21,.05],[56,.1],[1e9,.12]],comida:[[7,8],[21,20],[56,45],[1e9,70]],espacio:[[14,1/22],[28,1/10],[1e9,3]]},
+
+  perdiz:{name:'Perdiz chukar',group:'Codornices y caza',fin:'carne',days:23,lock:20,inc:{t:'37,5 °C',h:'45–50 %',tN:'37,0 °C',hN:'65 %',ovos:[7,14]},
+    temp:[[7,'35–37 °C'],[14,'32–34 °C'],[21,'29–31 °C'],[28,'26–28 °C'],[42,'22–24 °C'],[1e9,'10–28 °C']],cria:42,meta:[112,'Edad de sacrificio'],deworm:false,
+    dens:'25–30 por m² la primera semana y 12–15 por m² en la semana 4. Adultas: 0,5–1 m² por ave.',
+    luz:'Luz suave, unas 16 h.',
+    cama:'Papel o malla fina los primeros días, luego viruta.',
+    feed:[[0,28,'Iniciador de caza 26–28 %',''],[28,56,'Crecimiento 20–22 %',''],[56,null,'Mantenimiento 15–16 % + granos','']],
+    vac:[[14,5,'Newcastle (si hay casos)','']],
+    man:[[0,10,'Canicas en el bebedero','']],
+    adult:{aloj:'Jaula o voladero con piso de malla o arena seca y techo de malla suave.',prop:'1 macho por 1–3 hembras; forman parejas.',prod:'Carne: 450–600 g a las 14–16 semanas. 30–50 huevos por temporada.',temp:'Prefieren ambiente seco.'},
+    enf:['Coccidiosis','Enfermedades respiratorias por humedad','Picaje'],
+    tips:['La humedad las enferma: mantén todo seco.','Dales arena para que se bañen en polvo.'],
+    agua:[[7,.015],[21,.04],[1e9,.08]],comida:[[7,6],[21,15],[56,30],[1e9,40]],espacio:[[14,1/28],[28,1/13],[1e9,.7]]},
+
+  paloma:{name:'Paloma de carne',group:'Palomas',fin:'carne',days:18,lock:16,inc:{t:'37,5 °C',h:'50–55 %',tN:'37,0 °C',hN:'65–70 %',ovos:[5,10],nota:'Lo ideal es que la pareja incube y críe: los pichones se alimentan con la leche de buche de sus padres. Si incubas en máquina, pon los huevos bajo otra pareja antes de que nazcan.'},
+    temp:[[1e9,'Los padres les dan calor; nido a 18–28 °C']],cria:null,meta:[28,'Edad de venta del pichón'],deworm:true,
+    dens:'Palomar con 0,3 m² por pareja y 2 nidales por pareja.',
+    luz:'Luz natural.',
+    cama:'Nidales con paja o viruta. Cambia la cama de cada nido entre camadas.',
+    feed:[[0,25,'Lo alimentan los padres','Ten siempre granos y pellet 14–16 % para los padres.'],[25,null,'Granos mezclados + pellet','Maíz, trigo y arveja, más grit con minerales y calcio.']],
+    vac:[[28,3,'Paramixovirus de la paloma (PPMV-1)','Inyectable, antes de juntarlos con otras palomas.'],[35,14,'Viruela de la paloma (si hay casos)','']],
+    man:[[0,1,'Revisar el nido','Los padres alimentan con leche de buche.'],[14,7,'Pesar y revisar pichones','Un pichón que no crece puede tener tricomonas.']],
+    adult:{aloj:'Palomar seco y ventilado con perchas, 2 nidales por pareja y bebedero limpio.',prop:'Parejas fijas de un macho y una hembra.',prod:'Cada pareja cría 2 pichones cada 30–40 días: 12–16 al año. Pichón de 500–700 g a los 25–30 días.',temp:'18–28 °C.'},
+    enf:['Tricomoniasis (manchas amarillas en la boca)','Paramixovirus','Viruela','Coccidiosis'],
+    tips:['Dales grit con minerales y calcio: lo necesitan para la leche de buche.','Mantén el agua muy limpia: las tricomonas se pasan por el bebedero.'],
+    agua:[[1e9,.05]],comida:[[1e9,40]],espacio:[[1e9,.15]]}
+};
+const ALIAS={g:'ponedora',c:'codorniz'};
+const spOf=k=>SPECIES[ALIAS[k]||k]||SPECIES.ponedora;
+const keyOf=k=>SPECIES[ALIAS[k]||k]?(ALIAS[k]||k):'ponedora';
+const GROUPS=['Gallinas','Codornices y caza','Patos y gansos','Pavos y guineas','Palomas'];
+
+// arma el plan de manejo: [inicio, duración (0 = continuo), tipo, título, detalle, repetir cada]
+function buildPlan(s){
+  const P=[];
+  P.push([0,1,'man','Recibir las crías',s.cria==null?'Revisa que los padres los cubran y alimenten.':'Criadora a '+s.temp[0][1]+'. Agua tibia antes que el alimento.']);
+  P.push([0,3,'vit','Electrolitos + vitaminas (A, D3, E, complejo B)','En el agua de bebida. Azúcar al 5 % (50 g/L) solo las primeras 6–12 h.']);
+  s.feed.forEach(([a,b,t,d])=>P.push([a,b==null?0:b-a,'ali',t,d]));
+  let lastVit=0;
+  s.vac.forEach(([d,dur,t,det,every])=>{
+    P.push([d,dur,'vac',t,det,every]);
+    if(!every&&d>=4&&d-lastVit>3){P.push([d-1,3,'vit','Vitaminas por vacunación','1 día antes y 2 después. Nunca en la misma agua que la vacuna.']);lastVit=d}
+  });
+  s.man.forEach(([d,dur,t,det])=>P.push([d,dur,'man',t,det]));
+  if(s.cria!=null){
+    P.push([s.cria,7,'man','Retirar la fuente de calor','Baja poco a poco hasta '+s.temp[s.temp.length-1][1]+'. Vigila que no se amontonen de noche.']);
+    P.push([s.cria,3,'vit','Electrolitos + vitaminas por retiro del calor','Ayuda con el estrés del cambio.']);
+  }
+  if(s.fin==='huevo'||s.name==='Gallina criolla'){
+    P.push([s.meta[0]-14,5,'vit','Vitaminas A, D3, E','Preparación para la postura.']);
+    P.push([s.meta[0]+30,3,'vit','Vitaminas mensuales en postura','3 días cada mes.',30]);
+  }else{
+    P.push([s.meta[0],7,'man',s.meta[1],'Peso y edad ideales para venta o consumo.']);
+  }
+  if(s.deworm){
+    P.push([56,1,'man','Primera desparasitación interna','Fenbendazol o levamisol en dosis para aves. Respeta el retiro de huevos o carne de la etiqueta.']);
+    P.push([57,3,'vit','Vitaminas + probiótico después del desparasitante','']);
+    P.push([161,1,'man','Desparasitación interna','Cada 3–4 meses.',105]);
+  }
+  return P;
+}
+Object.values(SPECIES).forEach(s=>{s.plan=buildPlan(s);s.ovos=s.inc.ovos});
+(function(){
+  // ---------- utilidades ----------
+  const DAY=86400000;
+  const pad=n=>String(n).padStart(2,'0');
+  const toISO=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+  const parse=s=>{const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)};
+  const add=(d,n)=>{const r=new Date(d);r.setDate(r.getDate()+n);return r};
+  const diff=(a,b)=>Math.round((a-b)/DAY);
+  const fmt=d=>d.toLocaleDateString('es',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const fmtL=d=>d.toLocaleDateString('es',{day:'numeric',month:'long'});
+  const fmtS=d=>d.toLocaleDateString('es',{weekday:'short',day:'numeric',month:'short'});
+  const fmtH=h=>{if(!h)return '';const [H,M]=h.split(':').map(Number);return (H%12||12)+':'+pad(M)+(H<12?' a. m.':' p. m.')};
+  const today=()=>{const t=new Date();t.setHours(0,0,0,0);return t};
+  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const num=v=>v===''||v==null||isNaN(+v)?null:+v;
+  const pctN=(a,b)=>a!=null&&b?Math.round(a/b*100):null;
+  const pct=(a,b)=>{const p=pctN(a,b);return p==null?'—':p+'%'};
+  const dec=(v,d)=>v.toLocaleString('es',{minimumFractionDigits:d,maximumFractionDigits:d});
+  const $=id=>document.getElementById(id);
+  const ICO=p=>`<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">${p}</svg>`;
+  const IC={
+    edit:ICO('<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>'),
+    trash:ICO('<path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"/>'),
+    back:ICO('<path d="M15 5l-7 7 7 7"/>'),
+    chev:ICO('<path d="M9 5l7 7-7 7"/>'),
+    check:ICO('<circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.6 2.6L16 9.5"/>'),
+    camera:ICO('<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>'),
+    drop:ICO('<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/>'),
+    plus:ICO('<path d="M12 5v14M5 12h14"/>'),
+    chick:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="9" r="5" fill="#f7c948"/><circle cx="13.7" cy="8" r=".9" fill="#222"/><path d="M16.6 8.6l2.2.9-2.2.9z" fill="#f08a24"/><path d="M5 13l2.5 2 2-2 2.5 2 2.5-2 2 2 2.5-2c0 5-3 8.5-7 8.5S5 18 5 13z" fill="#f2ead9"/></svg>',
+    eggx:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3c3.5 0 6.5 6 6.5 10a6.5 6.5 0 0 1-13 0C5.5 9 8.5 3 12 3z" fill="#f2ead9"/><path d="M8.5 10l7 7M15.5 10l-7 7" stroke="#e5484d" stroke-width="2.4" stroke-linecap="round"/></svg>'
+  };
+  const TIPO={vit:'Vitamina',vac:'Vacuna',ali:'Alimento',man:'Manejo',inc:'Incubación'};
+  const byAge=(tbl,age)=>{for(const [lim,v] of tbl) if(age<lim) return v; return tbl[tbl.length-1][1]};
+  const shortTipo=t=>(t||'').split(/[ (/]/)[0]||'Incubadora';
+  const img=k=>IMG[keyOf(k)];
+
+  function itemState(it,age){
+    let [start,dur,,,,every]=it;
+    if(every && age>start){
+      const k=Math.floor((age-start)/every);
+      start=start+k*every;
+      if(age>start+dur-1) start+=every;
+    }
+    const end=dur?start+dur-1:null;
+    let st='pend';
+    if(age>=start&&(end==null||age<=end)) st='now';
+    else if(end!=null&&age>end) st='done';
+    return {start,end,st};
+  }
+
+  function info(l){
+    const s=spOf(l.especie), t=today(), inicio=parse(l.inicio);
+    const hatch=l.fechaNac?parse(l.fechaNac):add(inicio,s.days);
+    const diaInc=diff(t,inicio), age=diff(t,hatch);
+    const nacido=l.nacidos!=null;
+    const vivas=nacido?Math.max(0,l.nacidos-(l.muertes||0)):null;
+    const incubando=!nacido&&age<0;
+    let stage,stCls='';
+    if(incubando){stage='Incubando';stCls='inc'}
+    else if(!nacido){stage='Registra los nacidos';stCls='warn'}
+    else if(vivas===0){stage='Sin aves';stCls='warn'}
+    else if(s.cria!=null&&age<s.cria) stage='Crianza';
+    else if(age<s.meta[0]) stage='Crecimiento';
+    else stage=s.fin==='huevo'||s.name==='Gallina criolla'?'En postura':'Listo para venta';
+    return {s,t,inicio,hatch,diaInc,age,nacido,vivas,incubando,stage,stCls};
+  }
+  const photoURL=l=>l.foto&&(l.foto.url||(l.foto.id?'/_blob/'+l.foto.id:null))||l.fotoData||null;
+  const thumb=l=>`<img src="${esc(photoURL(l)||img(l.especie))}" alt="">`;
+
+  // mensaje del día de incubación (d = días desde que se metieron)
+  function incDay(s,d){
+    const inc=s.inc, o=inc.ovos;
+    if(d===0) return ['Huevos dentro','Coloca los huevos con la punta hacia abajo. No abras la incubadora en 24 h para que la temperatura se estabilice.'];
+    if(d===s.days) return ['Día de nacimiento','Ventana de nacimiento: hoy y mañana. Sácalos cuando estén secos y esponjosos; aguantan hasta 24 h dentro.'];
+    if(d===s.lock) return ['Paso a nacedora','Apaga el volteo, baja a '+inc.tN+' y sube la humedad a '+inc.hN+'. Desde ahora no abras la incubadora.'];
+    if(d>s.lock) return ['Sin abrir','Mantén '+inc.tN+' y humedad '+inc.hN+'. Puede empezar el picaje interno: se oyen piar dentro del huevo.'];
+    let t='Incubación', m='Mantén '+inc.t+' y humedad '+inc.h+'. Revisa el agua de la bandeja y que el volteo funcione.';
+    const i=o.indexOf(d);
+    if(i===0){t='Ovoscopía';m='Mira los huevos con una linterna: retira los claros (no fértiles) y los que tengan un anillo de sangre.'}
+    else if(i>0){t='Ovoscopía';m='Retira los huevos que se vean líquidos o sin movimiento.'}
+    else if(d===8){t='Ventilación';m='Abre los respiraderos a la mitad: el embrión ya necesita más oxígeno. '+m}
+    if(inc.cool&&d>=inc.cool) m+=' Enfría los huevos 10–15 min y rocíalos con agua tibia.';
+    return [t,m];
+  }
+
+  // ---------- almacenamiento ----------
+  let lotes=[], store=null, canWrite=true, assetsNs=null;
+  const LS='aves.lotes';
+  const localStore={
+    load(){try{return JSON.parse(localStorage.getItem(LS)||'[]')}catch(e){return []}},
+    save(arr){try{localStorage.setItem(LS,JSON.stringify(arr));return true}catch(e){return false}},
+    async put(id,data){const a=lotes.filter(x=>x.id!==id);a.push({...data,id});lotes=a;renderAll();if(!this.save(a)&&this.ok)throw {code:'quota_exceeded'}},
+    async del(id){const a=lotes.filter(x=>x.id!==id);this.save(a);lotes=a;renderAll()},
+    newId(){return 'l'+Date.now().toString(36)}
+  };
+  const strip=l=>{const {id,...rest}=l;return rest};
+  function setSync(text,on){$('storeNote').textContent=text;$('syncDot').classList.toggle('on',!!on);$('syncDot').title=text}
+
+  async function initStore(){
+    let db=null,user=null;
+    try{db=window.claude?await window.claude.use('db'):null}catch(e){db=null}
+    if(!db){
+      store=localStore;lotes=store.load();
+      try{localStorage.setItem('aves.t','1');localStorage.removeItem('aves.t');store.ok=true}catch(e){store.ok=false}
+      renderAll();
+      setSync(store.ok?'Tus lotes se guardan en este dispositivo y navegador.':'Este navegador no permite guardar datos: los lotes se pierden al cerrar la página.',store.ok);
+      return;
+    }
+    try{user=await window.claude.use('user')}catch(e){}
+    if(user){const w=await user.can('data.write');if(w===false)canWrite=false}
+    try{assetsNs=await window.claude.use('assets')}catch(e){assetsNs=null}
+    const col=db.collection('lotes');
+    store={async put(id,data){await col.doc(id).set(data)},async del(id){await col.doc(id).delete()},newId(){return col.doc().id}};
+    const timer=setTimeout(()=>setSync('No se pudo conectar con el registro todavía. Los datos pueden no estar al día.',false),10000);
+    col.onSnapshot(snap=>{
+      if(!snap.metadata.fromCache){clearTimeout(timer);setSync(canWrite?'Tus lotes se guardan en tu cuenta y se ven desde cualquier dispositivo.':'Puedes ver los lotes pero no modificarlos.',true)}
+      lotes=snap.docs.map(d=>({...d.data(),id:d.id}));
+      renderAll();
+    },err=>{clearTimeout(timer);setSync('No se pudo leer el registro ('+err.code+'). Recarga la página más tarde.',false)});
+    renderAll();
+  }
+
+  // ---------- navegación ----------
+  let view='inicio', hist=[], detailId=null, detailTab='basico', planFilter='todo', incDaySel=null, pendingDel=null, editing=null, guideKey='ponedora';
+  const TITLES={inicio:'Mi Granja',historia:'Historia',form:'Nuevo lote',guias:'Guías de manejo',calendario:'Calendario',detalle:''};
+  function show(v,{push=true}={}){
+    if(push&&v!==view) hist.push(view);
+    view=v;
+    document.querySelectorAll('.view').forEach(el=>el.hidden=el.id!=='v-'+v);
+    document.body.classList.toggle('on-detail',v==='detalle');
+    $('appTitle').textContent=v==='form'&&editing?'Editar lote':TITLES[v];
+    $('btnBack').hidden=v!=='form';$('appLogo').style.display=v==='form'?'none':'';
+    document.querySelectorAll('.bnav [data-nav]').forEach(b=>{
+      const on=b.dataset.nav===v||(b.dataset.nav==='inicio'&&v==='detalle');
+      if(on)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');
+    });
+    renderView();
+    window.scrollTo(0,0);
+  }
+  function back(){const v=hist.pop()||'inicio';show(v==='form'?'inicio':v,{push:false})}
+  function toast(t){const el=$('toast');el.textContent=t;el.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>el.hidden=true,2600)}
+
+  // ---------- piezas ----------
+  function ring(n,p,label){
+    const C=2*Math.PI*44, len=Math.max(0,Math.min(1,p))*C, fs=String(n).length>2?28:36;
+    return `<svg class="ring" viewBox="0 0 120 120" role="img" aria-label="${esc(n+' '+label)}">
+      <circle cx="60" cy="60" r="56" fill="none" stroke="var(--surface-3)" stroke-width="3" stroke-dasharray="14 6"/>
+      <circle cx="60" cy="60" r="44" fill="none" stroke="var(--surface-3)" stroke-width="12"/>
+      <circle cx="60" cy="60" r="44" fill="none" stroke="url(#ringGrad)" stroke-width="12" stroke-linecap="round" stroke-dasharray="${len.toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 60 60)"/>
+      <circle cx="60" cy="60" r="35" fill="var(--bg)"/>
+      <text x="60" y="${60+fs*0.36}" text-anchor="middle" font-size="${fs}">${n}</text></svg>`;
+  }
+
+  function card(l){
+    const I=info(l), s=I.s;
+    let n,label,p,pill,c1,c2;
+    if(I.incubando){n=Math.max(0,s.days-I.diaInc);label='Días restantes';p=I.diaInc/s.days;pill=shortTipo(l.tipo);c1='Días totales : '+s.days;c2='Días completados : '+Math.max(0,I.diaInc)}
+    else{n=Math.max(0,I.age);label='Días de edad';p=I.age/s.meta[0];pill=I.stage;c1='Vivas : '+(I.vivas??'—');c2='Semana '+(Math.floor(Math.max(0,I.age)/7)+1)}
+    const no=I.nacido?Math.max(0,l.huevos-l.nacidos):0;
+    const mon=I.inicio.toLocaleDateString('es',{month:'short'}).replace('.','');
+    return `<article class="lcard" data-open="${esc(l.id)}" tabindex="0" aria-label="${esc(l.nombre)}">
+      <div class="lc-main">
+        <div class="counters"><span title="Nacidos">${IC.chick}${l.nacidos??0}</span><span title="No nacidos">${IC.eggx}${no}</span><span class="chev">${IC.chev}</span></div>
+        <div class="lc-title"><span class="avatar">${thumb(l)}</span><div style="min-width:0"><h3>${esc(l.nombre)}</h3><small>${s.name}</small></div></div>
+        <div class="chips"><span class="chip">${c1}</span><span class="chip solid">${c2}</span></div>
+      </div>
+      <div class="lc-ring">${ring(n,p,label)}<div class="ring-lbl">${label}</div><span class="pill-o">${esc(pill)}</span></div>
+      <div class="lc-side"><span class="mon">${mon}</span><span class="day">${I.inicio.getDate()}</span>
+        ${canWrite?`<button type="button" class="icon-btn" data-edit="${esc(l.id)}" aria-label="Editar ${esc(l.nombre)}">${IC.edit}</button><button type="button" class="icon-btn" data-del="${esc(l.id)}" aria-label="Borrar ${esc(l.nombre)}">${IC.trash}</button>`:''}
+      </div>
+    </article>`;
+  }
+
+  function birdCard(k,attr,pressed){
+    const s=SPECIES[k];
+    return `<button type="button" class="bird" ${attr}="${k}"${pressed!=null?` aria-pressed="${pressed}"`:''}><img src="${IMG[k]}" alt=""><span class="bird-txt"><b>${s.name}</b><small>${s.days} días · ${s.fin}</small></span></button>`;
+  }
+
+  // tareas de un lote (hoy y próximos días)
+  function lotTasks(l,{soon=2,withFeed=true}={}){
+    const I=info(l), out=[];
+    if(I.incubando){
+      const ks=[0,8,...I.s.inc.ovos,I.s.lock,I.s.days];
+      [...new Set(ks)].forEach(d=>{const k=d-I.diaInc;if(k>=0&&k<=soon){const [t,m]=incDay(I.s,d);out.push({tipo:'inc',title:t,det:m,k,date:add(I.inicio,d)})}});
+    }else if(I.age>=0&&I.vivas!==0){
+      I.s.plan.forEach(it=>{
+        const x=itemState(it,I.age), tipo=it[2];
+        if(x.st==='now'){
+          if(!withFeed&&tipo==='ali'&&I.age!==x.start)return;
+          out.push({tipo,title:it[3],det:it[4],k:0,prog:x.end!=null&&it[1]>1?`Día ${I.age-x.start+1} de ${it[1]}`:''});
+        }else if(x.st==='pend'&&x.start-I.age<=soon){
+          out.push({tipo,title:it[3],det:it[4],k:x.start-I.age,date:add(I.hatch,x.start)});
+        }
+      });
+    }
+    return out.sort((a,b)=>a.k-b.k);
+  }
+  const whenTxt=t=>t.k===0?(t.prog||'Hoy'):t.k===1?'Mañana':fmtS(t.date);
+  const taskLi=(t,l)=>`<li class="task ${t.tipo}"${l?` data-open="${esc(l.id)}" data-tab-go="${t.tipo==='inc'?'incubacion':'hoy'}"`:''}><span class="bar"></span>${l?`<img class="task-img" src="${esc(photoURL(l)||img(l.especie))}" alt="">`:''}<div><b>${esc(t.title)}</b><small>${l?esc(l.nombre)+' · ':''}${TIPO[t.tipo]}${!l&&t.det?' · '+esc(t.det):''}</small></div><span class="when${t.k===0?' now':''}">${whenTxt(t)}</span></li>`;
+
+  // ---------- vistas ----------
+  function renderInicio(){
+    $('hoyFecha').textContent=today().toLocaleDateString('es',{weekday:'long',day:'numeric',month:'long'});
+    const inf=lotes.map(info);
+    const inc=inf.filter(i=>i.incubando).length, aves=inf.reduce((a,i)=>a+(i.vivas||0),0);
+    const all=[];lotes.forEach(l=>lotTasks(l,{soon:1,withFeed:false}).forEach(t=>all.push({t,l})));
+    $('miniKpis').innerHTML=`<div><b>${inc}</b><span>Incubando</span></div><div><b>${aves}</b><span>Aves vivas</span></div><div><b>${all.filter(x=>x.t.k===0).length}</b><span>Tareas hoy</span></div>`;
+    if(!$('pickInicio').childElementCount) $('pickInicio').innerHTML=Object.keys(SPECIES).map(k=>birdCard(k,'data-new')).join('');
+    $('tareasHoy').innerHTML=all.length?all.map(x=>taskLi(x.t,x.l)).join('')
+      :`<li class="empty"><strong>Sin tareas para hoy</strong><span>${lotes.length?'Agua limpia, alimento y revisión diaria.':'Cuando registres un lote, aquí verás sus vitaminas, vacunas y pasos de incubación.'}</span></li>`;
+    const sorted=lotes.slice().sort((a,b)=>(b.inicio||'').localeCompare(a.inicio||''));
+    $('lotesActivos').innerHTML=sorted.length?sorted.map(card).join('')
+      :'<div class="empty"><strong>Todavía no hay lotes</strong><span>Toca un ave de arriba para registrar tu primera incubación.</span></div>';
+  }
+
+  function renderCalendario(){
+    const t=today(); let h='';
+    for(let d=0;d<21;d++){
+      const day=add(t,d), items=[];
+      lotes.forEach(l=>{
+        const I=info(l);
+        if(!I.nacido&&I.diaInc+d<=I.s.days){
+          const off=I.diaInc+d;
+          if(off===0||off===8||off===I.s.lock||off===I.s.days||I.s.inc.ovos.includes(off)){const [ti,m]=incDay(I.s,off);items.push({l,tipo:'inc',title:ti,det:'Día '+off+' de '+I.s.days})}
+        }else if(I.nacido&&I.vivas){
+          const age=I.age+d;
+          I.s.plan.forEach(it=>{const x=itemState(it,age);if(x.start===age&&age>=0)items.push({l,tipo:it[2],title:it[3],det:it[1]>1?it[1]+' días':it[1]===0?'continuo':'1 día'})});
+        }
+      });
+      if(!items.length)continue;
+      h+=`<div class="cal-day${d===0?' is-today':''}"><div class="cal-date"><b>${day.getDate()}</b><span>${day.toLocaleDateString('es',{weekday:'short',month:'short'}).replace('.','')}</span></div><ul class="tasks">${items.map(x=>`<li class="task ${x.tipo}" data-open="${esc(x.l.id)}" data-tab-go="${x.tipo==='inc'?'incubacion':'plan'}"><span class="bar"></span><img class="task-img" src="${esc(photoURL(x.l)||img(x.l.especie))}" alt=""><div><b>${esc(x.title)}</b><small>${esc(x.l.nombre)} · ${TIPO[x.tipo]} · ${esc(x.det)}</small></div></li>`).join('')}</ul></div>`;
+    }
+    $('calList').innerHTML=h||'<div class="empty"><strong>Nada en las próximas 3 semanas</strong><span>Registra un lote para ver aquí sus fechas de vacunas, vitaminas y pasos de incubación.</span></div>';
+  }
+
+  function renderHistoria(){
+    const conN=lotes.filter(l=>l.nacidos!=null), conF=lotes.filter(l=>l.fertiles!=null);
+    const sum=(a,f)=>a.reduce((s,l)=>s+(l[f]||0),0);
+    const huevos=sum(lotes,'huevos'), nac=sum(conN,'nacidos');
+    $('kpis').innerHTML=`
+      <div class="kpi"><span>Lotes</span><b>${lotes.length}</b></div>
+      <div class="kpi"><span>Huevos metidos</span><b>${huevos}</b></div>
+      <div class="kpi"><span>Nacidos</span><b>${nac}</b></div>
+      <div class="kpi hl"><span>Eclosión</span><b>${pct(nac,sum(conN,'huevos'))}</b><small>nacidos / huevos</small></div>
+      <div class="kpi"><span>Fertilidad</span><b>${pct(sum(conF,'fertiles'),sum(conF,'huevos'))}</b><small>en la ovoscopía</small></div>
+      <div class="kpi"><span>Aves vivas</span><b>${lotes.map(info).reduce((a,i)=>a+(i.vivas||0),0)}</b></div>`;
+    const sorted=lotes.slice().sort((a,b)=>(b.inicio||'').localeCompare(a.inicio||''));
+    $('barsLotes').innerHTML=sorted.length?sorted.map(l=>{
+      const p=pctN(l.nacidos,l.huevos);
+      return `<div class="brow" data-open="${esc(l.id)}"><img class="task-img" src="${esc(photoURL(l)||img(l.especie))}" alt=""><div class="brow-body"><div class="brow-top"><b>${esc(l.nombre)}</b><span>${l.nacidos??'—'}/${l.huevos} · ${p==null?'incubando':p+'%'}</span></div><div class="track"><i style="width:${p||0}%"></i></div><small>${spOf(l.especie).name} · ${esc(shortTipo(l.tipo))} · ${fmt(parse(l.inicio))}</small></div></div>`}).join('')
+      :'<div class="empty"><strong>Sin datos todavía</strong><span>Registra lotes y sus nacimientos para comparar resultados.</span></div>';
+    const g={};conN.forEach(l=>{const k=l.tipo||'Sin tipo';(g[k]=g[k]||{h:0,n:0,c:0});g[k].h+=l.huevos;g[k].n+=l.nacidos;g[k].c++});
+    const keys=Object.keys(g).sort((a,b)=>g[b].n/g[b].h-g[a].n/g[a].h);
+    $('barsTipo').innerHTML=keys.length?keys.map(k=>{const p=pctN(g[k].n,g[k].h);return `<div class="brow"><div class="brow-body"><div class="brow-top"><b>${esc(k)}</b><span>${p}%</span></div><div class="track"><i style="width:${p}%"></i></div><small>${g[k].c} lote${g[k].c>1?'s':''} · ${g[k].n} nacidos de ${g[k].h} huevos</small></div></div>`}).join('')
+      :'<div class="empty"><span>Aparecerá cuando registres nacidos.</span></div>';
+  }
+
+  // ---------- detalle ----------
+  const TABS=[['basico','Básico'],['incubacion','Incubación'],['hoy','Hoy'],['plan','Plan'],['vitaminas','Vitaminas']];
+  function renderDetalle(){
+    const l=lotes.find(x=>x.id===detailId);
+    if(!l){$('v-detalle').innerHTML='';if(view==='detalle')show('inicio',{push:false});return}
+    const I=info(l), ph=photoURL(l);
+    $('v-detalle').innerHTML=`<div class="hero"><img src="${esc(ph||img(l.especie))}" alt="Foto de ${esc(l.nombre)}">
+      <div class="hero-bar"><button type="button" class="icon-btn on-photo" data-nav="back" aria-label="Volver">${IC.back}</button><h1>${esc(l.nombre)}</h1>${canWrite?`<button type="button" class="icon-btn on-photo" data-edit="${esc(l.id)}" aria-label="Editar">${IC.edit}</button><button type="button" class="icon-btn on-photo" data-del="${esc(l.id)}" aria-label="Borrar">${IC.trash}</button>`:''}</div>
+      ${canWrite?`<label class="photo-btn">${IC.camera}<span id="photoLbl">${ph?'Cambiar foto':'Poner mi foto'}</span><input type="file" accept="image/*" id="fotoInput" hidden></label>`:''}
+    </div>
+    <div class="tabs" role="tablist">${TABS.map(([k,t])=>`<button type="button" role="tab" aria-selected="${detailTab===k}" data-tab="${k}">${t}</button>`).join('')}</div>
+    <div class="panel" role="tabpanel">${tab(l,I)}</div>`;
+    const sel=document.querySelector('.daychips [aria-pressed="true"]');if(sel)sel.scrollIntoView({inline:'center',block:'nearest'});
+  }
+
+  function timeline(rows){
+    return `<ul class="tline">${rows.map(r=>`<li class="tl-item ${r.tipo} st-${r.st}"><span class="tl-dot"></span><div class="tl-body">
+      <div class="tl-top"><span class="ttype ${r.tipo}">${TIPO[r.tipo]}</span>${r.dur?`<span class="badge">${r.dur}</span>`:''}${r.st==='now'?'<span class="badge now">En curso</span>':r.st==='done'?'<span class="badge done">Hecho</span>':''}</div>
+      <strong>${esc(r.title)}</strong>${r.det?`<div class="muted">${esc(r.det)}</div>`:''}<div class="tl-date">${r.date}</div></div></li>`).join('')}</ul>`;
+  }
+  function planRows(l,I,filter){
+    return I.s.plan.map(it=>({it,...itemState(it,I.age)})).filter(x=>filter==='todo'||x.it[2]===filter).sort((a,b)=>a.start-b.start).map(x=>{
+      const [,dur,tipo,title,det,every]=x.it, d1=add(I.hatch,x.start), d2=x.end!=null?add(I.hatch,x.end):null;
+      return {tipo,title,det,st:I.age<0?'pend':x.st,dur:(dur===0?'Continuo':dur===1?'1 día':dur+' días')+(every?' · cada '+every+' días':''),
+        date:fmtS(d1)+(d2&&dur>1?' → '+fmtS(d2):'')+` · edad ${x.start<7?x.start+' días':'sem '+(Math.floor(x.start/7)+1)}`};
+    });
+  }
+
+  function incubacionTab(l,I){
+    const s=I.s, cur=Math.max(0,Math.min(I.diaInc,s.days));
+    const sel=incDaySel==null?cur:incDaySel;
+    const enN=I.diaInc>=s.lock;
+    const hatchTxt=fmtL(add(I.inicio,s.days))+(l.hora?', '+fmtH(l.hora):'');
+    const done=I.nacido||I.diaInc>s.days;
+    let h=`<div class="incsum">
+      <div class="incsum-l"><div class="incsum-sp"><span class="avatar round">${thumb(l)}</span><b>${s.name}</b></div>
+        <div class="counters"><span>${IC.chick}${l.nacidos??0}</span><span>${IC.eggx}${I.nacido?Math.max(0,l.huevos-l.nacidos):0}</span></div>
+        <div class="kv"><span>Fecha de inicio</span><b>${I.inicio.toLocaleDateString('es',{day:'numeric',month:'short',year:'numeric'})}</b>${l.hora?`<small>${fmtH(l.hora)}</small>`:''}</div>
+      </div>
+      <div class="incsum-r">
+        <div class="kv"><span>${done?'Incubación':'Día (en curso)'}</span><b class="big">${done?'Terminada':cur}</b></div>
+        <div class="kv"><span>Temperatura</span><b>${enN?s.inc.tN:s.inc.t}</b></div>
+        <div class="kv"><span>Humedad</span><b>${enN?s.inc.hN:s.inc.h}</b></div>
+      </div></div>`;
+    if(s.inc.nota) h+=`<p class="note">${esc(s.inc.nota)}</p>`;
+    h+=`<div class="hatch-pill">${IC.drop}<span>Fecha de eclosión esperada: <b>${hatchTxt}</b></span></div>`;
+    h+=`<h2 class="vh">Progreso de la incubadora</h2><div class="daychips">`;
+    for(let d=0;d<=s.days;d++){const st=d<I.diaInc||done?'done':d===I.diaInc?'now':'pend';h+=`<button type="button" class="dchip ${st}" data-day="${d}" aria-pressed="${d===sel}">${st==='done'?IC.check:''}${d===0?'Inicio':'Día '+d}</button>`}
+    h+='</div>';
+    const [t,m]=incDay(s,sel);
+    h+=`<div class="daycard ${sel===cur&&!done?'cur':''}"><div class="daycard-top"><b>Día ${sel} · ${esc(t)}</b><span>${fmtS(add(I.inicio,sel))}</span></div><p>${esc(m)}</p></div>`;
+    h+=`<h2 class="vh">Fechas clave</h2>`;
+    const ks=[...new Set([0,8,...s.inc.ovos,s.lock,s.days])].sort((a,b)=>a-b);
+    h+=timeline(ks.map(d=>{const [ti,me]=incDay(s,d);const k=diff(add(I.inicio,d),I.t);return {tipo:'inc',title:ti,det:me,st:k<0||done?'done':k===0?'now':'pend',dur:'Día '+d,date:fmtS(add(I.inicio,d))}}));
+    return h;
+  }
+
+  function tab(l,I){
+    const s=I.s;
+    if(detailTab==='basico'){
+      return `<div class="info-top"><span>${s.name.toLowerCase()}</span><span class="status ${I.stCls}">${I.stage}</span></div>
+      <div class="info-name"><span class="avatar round">${thumb(l)}</span><h2>${esc(l.nombre)}</h2></div>
+      <dl class="info">
+        <div><dt>Edad</dt><dd>${I.incubando?`Incubando · día ${Math.max(0,I.diaInc)} de ${s.days}`:I.age+' días (semana '+(Math.floor(Math.max(0,I.age)/7)+1)+')'}</dd></div>
+        <div><dt>Fecha de nacimiento</dt><dd>${fmt(I.hatch)}${l.fechaNac?'':' <small style="color:var(--muted)">(estimada)</small>'}</dd></div>
+        <div><dt>Huevos metidos el</dt><dd>${fmt(I.inicio)}${l.hora?' · '+fmtH(l.hora):''}</dd></div>
+        <div><dt>Incubadora</dt><dd>${esc(l.tipo)}${l.marca?' · '+esc(l.marca):''}${l.capacidad?' · '+l.capacidad+' huevos':''}</dd></div>
+        <div><dt>${s.meta[1]}</dt><dd>${fmt(add(I.hatch,s.meta[0]))} <small style="color:var(--muted)">(semana ${Math.floor(s.meta[0]/7)+1})</small></dd></div>
+      </dl>
+      <div class="kpis">
+        <div class="kpi"><span>Huevos</span><b>${l.huevos}</b></div>
+        <div class="kpi"><span>Fértiles</span><b>${l.fertiles??'—'}</b><small>${pct(l.fertiles,l.huevos)}</small></div>
+        <div class="kpi hl"><span>Nacidos</span><b>${l.nacidos??'—'}</b><small>${pct(l.nacidos,l.huevos)} de los huevos</small></div>
+        <div class="kpi"><span>Vivas hoy</span><b>${I.vivas??'—'}</b><small>${l.muertes?l.muertes+' muertes':''}</small></div>
+      </div>
+      ${l.notas?`<div class="notes">${esc(l.notas)}</div>`:''}
+      ${!I.nacido&&!I.incubando&&canWrite?`<button type="button" class="btn primary" data-edit="${esc(l.id)}">Registrar cuántos nacieron</button>`:''}
+      <button type="button" class="btn" data-guide="${keyOf(l.especie)}">Ver guía de manejo de ${s.name.toLowerCase()}</button>`;
+    }
+    if(detailTab==='incubacion') return incubacionTab(l,I);
+    if(detailTab==='hoy'){
+      const ts=lotTasks(l,{soon:3});
+      let h=`<h2 class="vh">${fmtS(I.t)}</h2>`;
+      h+=ts.length?`<ul class="tasks">${ts.map(t=>taskLi(t)).join('')}</ul>`:'<div class="empty"><span>Nada especial hoy: agua limpia, alimento y revisión diaria.</span></div>';
+      if(!I.incubando&&I.age>=0){
+        const n=I.vivas;
+        h+=`<h2 class="vh">Para tus aves hoy</h2><div class="kpis">
+          <div class="kpi"><span>Temperatura</span><b style="font-size:1.2rem">${byAge(s.temp,I.age)}</b><small>${s.cria!=null&&I.age<s.cria?'bajo la fuente de calor':'del recinto'}</small></div>
+          ${n?`<div class="kpi hl"><span>Agua al día</span><b>${dec(byAge(s.agua,I.age)*n,1)} L</b><small>prepara las vitaminas para esta cantidad</small></div>
+          <div class="kpi"><span>Alimento al día</span><b>${dec(byAge(s.comida,I.age)*n/1000,2)} kg</b><small>${byAge(s.comida,I.age)} g por ave</small></div>
+          <div class="kpi"><span>Espacio mínimo</span><b>${dec(byAge(s.espacio,I.age)*n,2)} m²</b><small>para ${n} aves</small></div>`
+          :'<div class="kpi"><span>Cantidades</span><small>Registra cuántos nacieron para calcular agua, alimento y espacio.</small></div>'}
+        </div>`;
+      }
+      return h;
+    }
+    if(detailTab==='plan'||detailTab==='vitaminas'){
+      const f=detailTab==='vitaminas'?'vit':planFilter;
+      let h='';
+      if(detailTab==='plan') h+=`<div class="filters">${[['todo','Todo'],['vit','Vitaminas'],['vac','Vacunas'],['ali','Alimento'],['man','Manejo']].map(([k,t])=>`<button type="button" class="chipf" data-filter="${k}" aria-pressed="${planFilter===k}">${t}</button>`).join('')}</div>`;
+      else h+=`<p class="note">Dosis: sigue la etiqueta del producto (suele ser 1 g o 1 ml por litro). Prepara solo lo que toman en el día y cambia el agua cada 24 h. Nunca des vitaminas en la misma agua que una vacuna. En olas de calor (más de 30 °C) da electrolitos con vitamina C mientras dure el calor.</p>`;
+      if(I.incubando) h+=`<p class="note">El plan empieza el día del nacimiento estimado: ${fmtS(I.hatch)}.</p>`;
+      return h+timeline(planRows(l,I,f));
+    }
+    return '';
+  }
+
+  // ---------- guías ----------
+  function renderGuias(){
+    const s=SPECIES[guideKey];
+    let h='';
+    GROUPS.forEach(g=>{
+      const ks=Object.keys(SPECIES).filter(k=>SPECIES[k].group===g);
+      h+=`<h3 class="grp">${g}</h3><div class="bird-grid">${ks.map(k=>birdCard(k,'data-guide',k===guideKey)).join('')}</div>`;
+    });
+    $('guidePick').innerHTML=h;
+    const tbl=(rows,head)=>`<div class="tbl"><table><thead><tr>${head.map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+    let prev=0;
+    const tempRows=s.temp.map(([lim,v])=>{const a=prev;prev=lim;return [lim>=1e9?`Desde el día ${a}`:`Días ${a}–${lim-1}`,v]});
+    const feedRows=s.feed.map(([a,b,t,d])=>[b==null?`Desde el día ${a}`:`Días ${a}–${b-1}`,`<b>${esc(t)}</b>${d?'<br><span class="muted">'+esc(d)+'</span>':''}`]);
+    const vacRows=s.vac.map(([d,dur,t,det,every])=>[every?`Cada ${every} días`:d===0?'Día 1':`Día ${d}${dur>1?'–'+(d+dur-1):''}`,`<b>${esc(t)}</b>${det?'<br><span class="muted">'+esc(det)+'</span>':''}`]);
+    $('guideBody').innerHTML=`
+      <div class="guide-hero"><img src="${IMG[guideKey]}" alt="${esc(s.name)}"><div><span class="eyebrow">${esc(s.group)} · ${esc(s.fin)}</span><h2>${esc(s.name)}</h2>
+        <div class="chips"><span class="chip solid">${s.days} días de incubación</span><span class="chip">${esc(s.meta[1])}: semana ${Math.floor(s.meta[0]/7)+1}</span></div>
+        ${canWrite?`<button type="button" class="btn primary" data-new="${guideKey}">${IC.plus} Crear lote de ${esc(s.name.toLowerCase())}</button>`:''}</div></div>
+      <section class="gsec"><h3>1. Incubación</h3>
+        ${tbl([['Duración',s.days+' días'],['Incubación (días 0–'+(s.lock-1)+')',s.inc.t+' · humedad '+s.inc.h],['Nacedora (desde el día '+s.lock+')',s.inc.tN+' · humedad '+s.inc.hN],['Volteo','Automático cada 1–2 h hasta el día '+s.lock],['Ovoscopía','Días '+s.inc.ovos.join(', ')]].concat(s.inc.cool?[['Enfriado','Desde el día '+s.inc.cool+': 10–15 min al día y rociar con agua tibia']]:[]),['Parámetro','Valor'])}
+        ${s.inc.nota?`<p class="note">${esc(s.inc.nota)}</p>`:''}</section>
+      <section class="gsec"><h3>2. Crianza inicial</h3>
+        ${tbl(tempRows,['Edad','Temperatura'])}
+        <ul class="glist"><li><b>Espacio:</b> ${esc(s.dens)}</li><li><b>Luz:</b> ${esc(s.luz)}</li><li><b>Cama:</b> ${esc(s.cama)}</li>${s.cria!=null?`<li><b>Retiro del calor:</b> desde el día ${s.cria}.</li>`:''}</ul></section>
+      <section class="gsec"><h3>3. Alimentación</h3>${tbl(feedRows,['Edad','Alimento'])}
+        <ul class="glist"><li>Agua limpia siempre: toman 1,5–2 veces lo que comen, y el doble con calor.</li><li>Días 1–3: electrolitos y vitaminas en el agua.</li></ul></section>
+      <section class="gsec"><h3>4. Vacunas y sanidad</h3>${vacRows.length?tbl(vacRows,['Cuándo','Vacuna']):'<p class="muted">Sin vacunas de rutina en casa. Consulta a tu veterinario si hay brotes en tu zona.</p>'}
+        <p class="note">Confirma el calendario con un veterinario de tu zona. La vacuna de influenza aviar solo se aplica si la autoridad la autoriza.</p>
+        <ul class="glist"><li><b>Enfermedades a vigilar:</b> ${s.enf.map(esc).join(', ')}.</li>${s.deworm?'<li><b>Desparasitación:</b> a las 8 semanas y luego cada 3–4 meses.</li>':''}</ul></section>
+      <section class="gsec"><h3>5. Manejo de adultos</h3><ul class="glist">
+        <li><b>Alojamiento:</b> ${esc(s.adult.aloj)}</li><li><b>Proporción:</b> ${esc(s.adult.prop)}</li><li><b>Producción:</b> ${esc(s.adult.prod)}</li><li><b>Temperatura:</b> ${esc(s.adult.temp)}</li></ul></section>
+      <section class="gsec"><h3>Consejos</h3><ul class="glist">${s.tips.map(t=>`<li>${esc(t)}</li>`).join('')}</ul></section>
+      <section class="gsec"><h3>Para todas las aves</h3><ul class="glist">
+        <li><b>Bioseguridad:</b> calzado exclusivo, cuarentena de 3–4 semanas para aves nuevas, malla contra aves silvestres y control de roedores.</li>
+        <li><b>Signos de alarma:</b> plumas erizadas y ave apartada; estornudos o cara hinchada; diarrea con sangre (coccidiosis); cuello torcido o parálisis (Newcastle, avisa al servicio veterinario); muertes súbitas.</li>
+        <li><b>Picaje:</b> se previene con buen espacio, luz suave, alimento con la proteína correcta y entretenimiento. Aísla de inmediato al ave herida.</li>
+        <li><b>Calor (más de 30 °C):</b> sombra, ventilación, agua fresca con electrolitos y alimento en horas frescas.</li></ul></section>`;
+  }
+
+  function renderView(){
+    if(view==='inicio')renderInicio();
+    else if(view==='historia')renderHistoria();
+    else if(view==='calendario')renderCalendario();
+    else if(view==='guias')renderGuias();
+    else if(view==='detalle')renderDetalle();
+    else if(view==='form')renderPickForm();
+  }
+  function renderAll(){renderView();if(view!=='inicio')renderInicio()}
+  function renderPickForm(){
+    const cur=$('lEspecie').value;
+    $('pickForm').innerHTML=Object.keys(SPECIES).map(k=>birdCard(k,'data-pick',k===cur)).join('');
+    const s=SPECIES[cur];$('formSpInfo').textContent=s.name+': '+s.days+' días de incubación, '+s.inc.t+', humedad '+s.inc.h+'.';
+  }
+
+  // ---------- formulario ----------
+  const form=$('loteForm'), msg=$('formMsg');
+  function readForm(){
+    return {nombre:$('lNombre').value.trim(),especie:$('lEspecie').value,tipo:$('lTipo').value,marca:$('lMarca').value.trim(),
+      capacidad:num($('lCapacidad').value),inicio:$('lInicio').value,hora:$('lHora').value||null,huevos:num($('lHuevos').value),fertiles:num($('lFertiles').value),
+      nacidos:num($('lNacidos').value),fechaNac:$('lFechaNac').value||null,muertes:num($('lMuertes').value),notas:$('lNotas').value.trim()};
+  }
+  function openForm(sp,l){
+    form.reset();editing=l?l.id:null;msg.textContent='';
+    if(l){
+      $('lNombre').value=l.nombre||'';$('lTipo').value=l.tipo;$('lMarca').value=l.marca||'';$('lCapacidad').value=l.capacidad??'';
+      $('lInicio').value=l.inicio;$('lHora').value=l.hora||'';$('lHuevos').value=l.huevos??'';$('lFertiles').value=l.fertiles??'';$('lNacidos').value=l.nacidos??'';
+      $('lFechaNac').value=l.fechaNac||'';$('lMuertes').value=l.muertes??'';$('lNotas').value=l.notas||'';sp=l.especie;
+    }else{const n=new Date();$('lInicio').value=toISO(n);$('lHora').value=pad(n.getHours())+':'+pad(n.getMinutes())}
+    $('lEspecie').value=keyOf(sp||'ponedora');
+    $('btnGuardar').textContent=l?'Guardar cambios':'Guardar lote';
+    show('form');
+  }
+  function validate(d){
+    if(!d.inicio) return 'Indica la fecha en que metiste los huevos.';
+    if(!d.huevos||d.huevos<1) return 'Indica cuántos huevos metiste.';
+    if(d.fertiles!=null&&d.fertiles>d.huevos) return 'Los fértiles no pueden ser más que los huevos metidos.';
+    if(d.nacidos!=null&&d.nacidos>d.huevos) return 'Los nacidos no pueden ser más que los huevos metidos.';
+    if(d.muertes!=null&&d.nacidos!=null&&d.muertes>d.nacidos) return 'Las muertes no pueden ser más que los nacidos.';
+    if(d.fechaNac&&d.fechaNac<d.inicio) return 'La fecha de nacimiento no puede ser antes de meter los huevos.';
+    return null;
+  }
+  form.addEventListener('submit',async e=>{
+    e.preventDefault();
+    const d=readForm(),err=validate(d);
+    if(err){msg.textContent=err;return}
+    const prev=editing?lotes.find(x=>x.id===editing):null;
+    if(prev){d.creado=prev.creado;if(prev.foto)d.foto=prev.foto;if(prev.fotoData)d.fotoData=prev.fotoData}
+    else d.creado=new Date().toISOString();
+    if(!d.nombre){const n=lotes.filter(x=>keyOf(x.especie)===d.especie).length+1;d.nombre=SPECIES[d.especie].name+' lote '+n}
+    const id=editing||store.newId();
+    $('btnGuardar').disabled=true;msg.textContent='Guardando…';
+    try{
+      await store.put(id,d);
+      const was=!!editing;editing=null;detailId=id;detailTab=was?detailTab:(d.nacidos==null?'incubacion':'basico');incDaySel=null;
+      hist=hist.filter(v=>v!=='form'&&v!=='detalle');
+      show('detalle');toast(was?'Lote actualizado':'Lote guardado');
+    }catch(ex){msg.textContent=ex&&ex.code==='quota_exceeded'?'El registro está lleno. Borra lotes viejos para guardar uno nuevo.':'No se pudo guardar. Revisa tu conexión e inténtalo de nuevo.'}
+    finally{$('btnGuardar').disabled=false}
+  });
+
+  // ---------- foto ----------
+  function loadImg(file){return new Promise((res,rej)=>{const u=URL.createObjectURL(file),i=new Image();i.onload=()=>res(i);i.onerror=()=>rej(new Error('img'));i.src=u})}
+  function draw(im,max){const r=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*r);c.height=Math.round(im.height*r);c.getContext('2d').drawImage(im,0,0,c.width,c.height);return c}
+  async function setPhoto(file,l){
+    const lbl=$('photoLbl');if(lbl)lbl.textContent='Subiendo…';
+    try{
+      const im=await loadImg(file), data=strip(l);
+      if(assetsNs){
+        const blob=await new Promise(r=>draw(im,1400).toBlob(r,'image/jpeg',.82));
+        const up=await assetsNs.upload(blob);
+        const old=l.foto&&l.foto.id;
+        data.foto={id:up.id,url:up.url};delete data.fotoData;
+        await store.put(l.id,data);
+        if(old&&old!==up.id){try{await assetsNs.delete(old)}catch(e){}}
+      }else{
+        data.fotoData=draw(im,720).toDataURL('image/jpeg',.72);delete data.foto;
+        await store.put(l.id,data);
+      }
+      toast('Foto guardada');
+    }catch(e){toast('No se pudo guardar la foto. Prueba con otra imagen.');if(lbl)lbl.textContent='Poner mi foto'}
+  }
+
+  // ---------- eventos ----------
+  document.addEventListener('click',e=>{
+    const t=e.target.closest('[data-edit],[data-del],[data-new],[data-pick],[data-guide],[data-nav],[data-tab],[data-filter],[data-day],[data-confirm],[data-open]');
+    if(!t)return;
+    const ds=t.dataset;
+    if(ds.edit){const l=lotes.find(x=>x.id===ds.edit);if(l)openForm(l.especie,l);return}
+    if(ds.del){pendingDel=ds.del;const l=lotes.find(x=>x.id===ds.del);$('confirmTxt').textContent='¿Borrar '+(l?l.nombre:'este lote')+'?';$('confirmBg').hidden=false;return}
+    if(ds.confirm){
+      $('confirmBg').hidden=true;
+      if(ds.confirm==='yes'&&pendingDel){const id=pendingDel;pendingDel=null;
+        store.del(id).then(()=>{toast('Lote borrado');if(view==='detalle'&&detailId===id)show('inicio',{push:false})}).catch(()=>toast('No se pudo borrar. Inténtalo de nuevo.'))}
+      else pendingDel=null;
+      return;
+    }
+    if(ds.new){if(!canWrite){toast('No tienes permiso para crear lotes.');return}openForm(ds.new);return}
+    if(ds.pick){$('lEspecie').value=ds.pick;renderPickForm();return}
+    if(ds.guide){guideKey=ds.guide;if(view!=='guias'){show('guias')}else{renderGuias();$('guideBody').scrollIntoView({block:'start'})}return}
+    if(ds.nav){if(ds.nav==='back'){back();return}hist=[];show(ds.nav,{push:false});return}
+    if(ds.tab){detailTab=ds.tab;incDaySel=null;renderDetalle();return}
+    if(ds.filter){planFilter=ds.filter;renderDetalle();return}
+    if(ds.day!=null){incDaySel=+ds.day;renderDetalle();return}
+    if(ds.open){detailId=ds.open;detailTab=ds.tabGo||'basico';incDaySel=null;show('detalle')}
+  });
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape'&&!$('confirmBg').hidden){$('confirmBg').hidden=true;pendingDel=null}
+    if((e.key==='Enter'||e.key===' ')&&e.target.matches('.lcard')){e.preventDefault();e.target.click()}
+  });
+  document.addEventListener('change',e=>{
+    if(e.target.id==='fotoInput'&&e.target.files[0]){const l=lotes.find(x=>x.id===detailId);if(l)setPhoto(e.target.files[0],l)}
+  });
+
+  $('creditos').innerHTML=Object.entries(CREDITS).map(([k,c])=>`<li>${esc(SPECIES[k]?SPECIES[k].name:k)}: <a href="${esc(c.page)}" target="_blank" rel="noopener">${esc(c.artist||'autor en Wikimedia Commons')}</a>, ${esc(c.license)}</li>`).join('');
+  show('inicio',{push:false});
+  initStore();
+})();
+</script>
+<script>if("serviceWorker" in navigator&&location.protocol==="https:")navigator.serviceWorker.register("sw.js").catch(()=>{});</script>
+</body>
+</html>
