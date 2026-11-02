@@ -158,6 +158,8 @@ input[type=text],input[type=number]{font:inherit;color:var(--ink);background:var
 .roster{background:var(--paper);border:1.5px solid var(--line);border-radius:10px;padding:16px;max-width:780px}
 .rhead{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 12px;margin-bottom:10px}
 .rhead h3{margin:0;font:700 28px/1.1 var(--hand);color:var(--marker)}
+.rclosed{margin:0;padding:14px 16px;border:1.5px dashed var(--line);border-radius:10px;color:var(--muted);max-width:780px}
+.rclosed[hidden],.roster[hidden]{display:none}
 .psearch{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:14px 0 6px}
 .psearch .sbox{position:relative;flex:1;min-width:220px}
 .psearch input{width:100%;font:inherit;font-size:15px;color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:6px;padding:9px 34px 9px 34px}
@@ -271,8 +273,8 @@ body.ro .caledit,body.ro #applyOfficial{display:none}
 .st-in{color:var(--marker);font-weight:600}.st-out{color:var(--muted)}
 
 /* Llaves */
-.bw{overflow-x:auto;padding:4px 2px 10px}
-.bracket{display:grid;grid-template-columns:repeat(3,minmax(215px,1fr)) minmax(190px,.9fr);grid-template-rows:auto 580px;column-gap:44px;min-width:960px}
+.bw{overflow-x:auto;overflow-y:hidden;padding:4px 2px 10px}
+.bracket{display:grid;grid-template-columns:repeat(3,minmax(215px,1fr)) minmax(190px,.9fr);grid-template-rows:auto minmax(620px,auto);column-gap:44px;min-width:960px}
 .rh{margin:0 0 6px;font:700 22px var(--hand);color:var(--ink)}
 .round{display:flex;flex-direction:column}
 .pair{flex:1;display:flex;flex-direction:column;position:relative}
@@ -282,8 +284,9 @@ body.ro .caledit,body.ro #applyOfficial{display:none}
 .pair>.slot::after,.slot.feed::after{content:"";position:absolute;right:-22px;width:22px;top:50%;border-top:2.5px solid var(--marker)}
 .round.in .slot::before{content:"";position:absolute;left:-22px;width:22px;top:50%;border-top:2.5px solid var(--marker)}
 .match{background:var(--paper);border:1.5px solid var(--line);border-radius:8px;overflow:hidden}
-.mh{font:600 13px var(--sans);color:var(--muted);padding:5px 10px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:8px}
-.mh .wait{font-weight:500;color:var(--amber);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mh{font:600 13px var(--sans);color:var(--muted);padding:5px 10px;border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 8px}
+.mh .wait{font-weight:500;color:var(--amber);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-basis:100%}
+.mh .wait:empty{display:none}
 .pending{background:var(--amber-bg);border-left:4px solid var(--amber);border-radius:8px;padding:12px 16px;margin:0 0 18px;max-width:820px}
 .pending.ok{background:var(--mint);border-left-color:var(--marker)}
 .pending p{margin:0 0 6px;font-weight:600}
@@ -373,9 +376,12 @@ body.ro .import{display:none}
 .fmt input{margin-top:4px;accent-color:var(--marker)}
 .fmt .big{display:block;font:700 22px/1.1 var(--hand);color:var(--marker)}
 .fmt .small{font-size:14px;color:var(--muted)}
-.bracket.s4{grid-template-columns:repeat(2,minmax(230px,1fr)) minmax(200px,.9fr);grid-template-rows:auto 480px;min-width:740px}
+.bracket.s4{grid-template-columns:repeat(2,minmax(230px,1fr)) minmax(200px,.9fr);grid-template-rows:auto minmax(480px,auto);min-width:740px}
 .round.pos{position:relative}
-.third{position:absolute;left:0;right:0;bottom:0}
+.third{margin-top:14px}
+.round.pos .slot.feed{flex:1}
+.slot.feed>.champ{width:100%}
+.round .slot.feed:has(.champ)::after{display:none}
 .podium{margin:10px 0 0;font-size:14px;color:var(--muted);line-height:1.5}
 .podium b{color:var(--ink);font-weight:600}
 .champ{border:2.5px solid var(--marker);border-radius:10px;padding:18px 12px;text-align:center;background:var(--paper)}
@@ -526,14 +532,15 @@ footer{margin-top:48px;font-size:13px;color:var(--muted)}
       <div class="iresult" id="importResult" aria-live="polite" hidden></div>
     </div>
     <div class="chips" id="rosterChips" role="tablist" aria-label="Equipos"></div>
-    <div class="roster" role="tabpanel" aria-labelledby="rosterTitle">
+    <p class="rclosed" id="rosterClosed">Toque un equipo para abrir su planilla. Vuelva a tocarlo para cerrarla.</p>
+    <div class="roster" id="rosterPanel" role="tabpanel" aria-labelledby="rosterTitle" hidden>
       <div class="rhead"><h3 id="rosterTitle"></h3><span class="gs" id="rosterCount"></span></div>
       <div class="addp">
         <input type="text" id="pNum" maxlength="6" inputmode="tel" autocomplete="off" placeholder="N.º" aria-label="Número del jugador, por ejemplo 7 o 2+1">
         <input type="text" id="pName" maxlength="50" placeholder="Nombre del jugador" aria-label="Nombre del jugador" autocomplete="off">
         <button class="btn" id="pAdd" type="button">Agregar jugador</button>
       </div>
-      <details class="bulk" open>
+      <details class="bulk" id="bulkBox">
         <summary>Agregar varios jugadores a la vez</summary>
         <p class="sub">Escriba o pegue un jugador por línea, con el número al inicio si lo tiene: <code>10 Juan Pérez</code>. También puede copiar las columnas directamente desde Excel.</p>
         <textarea id="bulkText" rows="6" aria-label="Lista de jugadores, uno por línea" placeholder="1 Carlos Mejía&#10;5 Luis Andino&#10;10 Juan Pérez"></textarea>
@@ -918,11 +925,11 @@ function buildBracket(){
     </div>
     <div class="round in"><div class="pair"><div class="slot">${mh('s1')}</div><div class="slot">${mh('s2')}</div></div></div>
     <div class="round in pos"><div class="slot feed">${mh('f')}</div><div class="third">${mh('t3')}</div></div>
-    <div class="round in"><div class="slot"><div class="champ" id="champ" aria-live="polite">
+    <div class="round in pos"><div class="slot feed"><div class="champ" id="champ" aria-live="polite">
       <span class="trophy" aria-hidden="true">🏆</span>
       <span class="cwrap"><span class="cn" id="champName">Por definir</span>
         <svg class="circle" viewBox="0 0 200 80" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d="M24,46 C18,20 70,7 112,8 C162,9 194,24 190,45 C186,67 138,75 94,73 C48,71 10,60 14,38 C17,24 40,15 64,12"/></svg>
-      </span><p class="podium" id="podium"></p></div></div></div>`;
+      </span><p class="podium" id="podium"></p></div></div><div class="third tspacer" aria-hidden="true"></div></div>`;
   $$('.match').forEach(el=>{
     const id=el.dataset.m;
     el.querySelectorAll('input').forEach(inp=>{
@@ -1004,6 +1011,7 @@ function refresh(){
   $$('main input, main textarea').forEach(e=>{if(RO)e.disabled=true;else if(!e.closest('.match'))e.disabled=false});
   const pod=[];if(C.runner!=null)pod.push('Subcampeón: <b>'+esc(nm(C.runner))+'</b>');if(C.third!=null)pod.push('Tercer lugar: <b>'+esc(nm(C.third))+'</b>');
   $('#podium').innerHTML=pod.join('<br>');
+  const t3=$('.round.pos .third:not(.tspacer)'),sp=$('.tspacer');if(t3&&sp)sp.style.height=t3.offsetHeight+'px';
 }
 
 /* ---------- acciones ---------- */
@@ -1142,9 +1150,10 @@ function hl(name,q){
   return out+(open?'</mark>':'');
 }
 function renderRoster(){
-  const order=teamOrder();if(rosterTeam==null)rosterTeam=order[0];
+  const order=teamOrder();if(rosterTeam!=null&&!order.includes(rosterTeam))rosterTeam=null;
+  const isOpen=rosterTeam!=null;$('#rosterPanel').hidden=!isOpen;$('#rosterClosed').hidden=isOpen;
   const cnt=t=>S.scorers.filter(p=>p.team===t).length;
-  $('#rosterChips').innerHTML=order.map(t=>`<button class="chip" type="button" role="tab" data-team="${t}" aria-selected="${t===rosterTeam}" tabindex="${t===rosterTeam?0:-1}" aria-label="${esc(nm(t))}, ${plural(cnt(t),'jugador','jugadores')}">${S.drawn?`<span class="cc" style="margin:0 6px 0 0">${groupOf(t)}</span>`:''}${esc(nm(t))}<span class="cc">${cnt(t)}</span></button>`).join('');
+  $('#rosterChips').innerHTML=order.map(t=>`<button class="chip" type="button" role="tab" data-team="${t}" aria-selected="${t===rosterTeam}" tabindex="${t===rosterTeam||(!isOpen&&t===order[0])?0:-1}" aria-expanded="${t===rosterTeam}" aria-label="${esc(nm(t))}, ${plural(cnt(t),'jugador','jugadores')}">${S.drawn?`<span class="cc" style="margin:0 6px 0 0">${groupOf(t)}</span>`:''}${esc(nm(t))}<span class="cc">${cnt(t)}</span></button>`).join('');
   const idx=new Map(S.scorers.map((p,i)=>[p,i]));
   const sorter={num:(a,b)=>cmpDorsal(a.num,b.num)||a.name.localeCompare(b.name,'es'),
     name:(a,b)=>a.name.localeCompare(b.name,'es'),add:(a,b)=>idx.get(a)-idx.get(b)}[rosterSort]||((a,b)=>0);
@@ -1152,6 +1161,7 @@ function renderRoster(){
   if(frozen&&frozen.team===rosterTeam){const pos=new Map(frozen.ids.map((id,i)=>[id,i]));pl.sort((a,b)=>(pos.get(a.id)??1e9)-(pos.get(b.id)??1e9))}
   $$('.seg [data-sort]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.sort===rosterSort)));
   $('#clearNums').hidden=!pl.some(p=>p.num!=null);
+  if(!isOpen)return;
   $('#rosterTitle').textContent=nm(rosterTeam);
   const goals=pl.reduce((a,p)=>a+p.goals,0);
   const ty=pl.reduce((a,p)=>a+yc(p),0),tr=pl.reduce((a,p)=>a+rc(p),0);
@@ -1268,11 +1278,20 @@ $('#xlsTpl').addEventListener('click',()=>{
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Jugadores');XLSX.writeFile(wb,'plantilla_jugadores.xlsx');
 });
 $('#pSearch').addEventListener('input',()=>{frozen=null;renderRoster()});
+// Cerrar la planilla al tocar fuera de ella (no cuenta tocar los equipos, ventanas de confirmación ni avisos)
+document.addEventListener('pointerdown',e=>{
+  if(rosterTeam==null)return;
+  const path=e.composedPath?e.composedPath():[];
+  const inside=path.some(n=>n&&n.id&&(n.id==='rosterPanel'||n.id==='rosterChips'||n.id==='toast')||n&&n.classList&&n.classList.contains('modal'));
+  if(inside||[...document.querySelectorAll('.modal')].some(m=>!m.hidden))return;
+  const a=document.activeElement;if(a&&a.closest&&a.closest('#rosterPanel'))a.blur();
+  rosterTeam=null;frozen=null;renderRoster();
+});
 $('#pSearch').addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#pSearch').value){e.preventDefault();$('#pSearch').value='';renderRoster()}});
 $('#pSearchX').addEventListener('click',()=>{$('#pSearch').value='';renderRoster();$('#pSearch').focus()});
 $('#pSearchAlso').addEventListener('click',e=>{const b=e.target.closest('[data-goteam]');if(!b)return;rosterTeam=+b.dataset.goteam;refresh();$('#pSearch').focus()});
-$('#rosterChips').addEventListener('click',e=>{
-  const c=e.target.closest('.chip');if(!c)return;rosterTeam=+c.dataset.team;refresh();
+$('#rosterChips').addEventListener('click',e=>{if($('#bulkBox'))$('#bulkBox').open=false;
+  const c=e.target.closest('.chip');if(!c)return;const t=+c.dataset.team;rosterTeam=rosterTeam===t?null:t;frozen=null;refresh();
   $(`#rosterChips .chip[data-team="${rosterTeam}"]`)?.focus();
 });
 $('#rosterChips').addEventListener('keydown',e=>{
