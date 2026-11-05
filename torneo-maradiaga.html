@@ -158,6 +158,13 @@ input[type=text],input[type=number]{font:inherit;color:var(--ink);background:var
 .roster{background:var(--paper);border:1.5px solid var(--line);border-radius:10px;padding:16px;max-width:780px}
 .rhead{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 12px;margin-bottom:10px}
 .rhead h3{margin:0;font:700 28px/1.1 var(--hand);color:var(--marker)}
+.dupbox{background:var(--amber-bg);border-left:4px solid var(--danger);border-radius:8px;padding:12px 16px;margin:0 0 14px;max-width:900px}
+.dupbox[hidden]{display:none}
+.dupbox p{margin:0 0 6px;font-weight:600}
+.dupbox ul{margin:0;padding-left:18px}
+.dupbox li{padding:2px 0}
+.dupbox button{font:600 12.5px var(--sans);padding:2px 8px;margin-left:4px;border-radius:6px;border:1.5px solid var(--amber);background:transparent;color:var(--amber);cursor:pointer}
+.twice{display:inline-block;font:700 11.5px var(--cond);color:#fff;background:var(--danger);border-radius:999px;padding:1px 8px;margin-left:6px;vertical-align:1px}
 .rclosed{margin:0;padding:14px 16px;border:1.5px dashed var(--line);border-radius:10px;color:var(--muted);max-width:780px}
 .rclosed[hidden],.roster[hidden]{display:none}
 .psearch{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:14px 0 6px}
@@ -531,6 +538,7 @@ footer{margin-top:48px;font-size:13px;color:var(--muted)}
       </div>
       <div class="iresult" id="importResult" aria-live="polite" hidden></div>
     </div>
+    <div class="dupbox" id="dupBox" role="alert" hidden></div>
     <div class="chips" id="rosterChips" role="tablist" aria-label="Equipos"></div>
     <p class="rclosed" id="rosterClosed">Toque un equipo para abrir su planilla. Vuelva a tocarlo para cerrarla.</p>
     <div class="roster" id="rosterPanel" role="tabpanel" aria-labelledby="rosterTitle" hidden>
@@ -1149,7 +1157,17 @@ function hl(name,q){
   for(let i=0;i<base.length;i++){if(marks[i]&&!open){out+='<mark>';open=true}if(!marks[i]&&open){out+='</mark>';open=false}out+=esc(base[i])}
   return out+(open?'</mark>':'');
 }
+function dupGroups(){
+  const by={};S.scorers.forEach(p=>{const k=playerKey(p.name);(by[k]=by[k]||[]).push(p)});
+  return Object.values(by).filter(g=>new Set(g.map(p=>p.team)).size>1);
+}
+function renderDupBox(){
+  const g=dupGroups(),box=$('#dupBox');box.hidden=!g.length;if(!g.length){box.innerHTML='';return}
+  box.innerHTML=`<p>⚠️ ${g.length===1?'1 jugador aparece inscrito':g.length+' jugadores aparecen inscritos'} en más de un equipo. Quite al jugador del equipo que no corresponde.</p><ul>`+
+    g.map(x=>`<li><b>${esc(x[0].name)}</b>: `+x.map(p=>`${esc(nm(p.team))}${p.num!=null?' (#'+esc(p.num)+')':''}<button type="button" data-openteam="${p.team}">Ver</button>`).join(', ')+'</li>').join('')+'</ul>';
+}
 function renderRoster(){
+  renderDupBox();
   const order=teamOrder();if(rosterTeam!=null&&!order.includes(rosterTeam))rosterTeam=null;
   const isOpen=rosterTeam!=null;$('#rosterPanel').hidden=!isOpen;$('#rosterClosed').hidden=isOpen;
   const cnt=t=>S.scorers.filter(p=>p.team===t).length;
@@ -1176,19 +1194,28 @@ function renderRoster(){
     also.innerHTML=ks.length?'<span>'+(shown.length?'También en:':'Se encontró en:')+'</span>'+ks.map(t=>`<button type="button" data-goteam="${t}">${esc(nm(t))} (${others[t]})</button>`).join(''):'';
   }else{also.hidden=true;also.innerHTML=''}
   if(pl.length&&!shown.length){$('#rosterTable tbody').innerHTML=`<tr class="empty-row"><td colspan="6">Ningún jugador de ${esc(nm(rosterTeam))} coincide con “${esc(q.raw)}”.</td></tr>`;return}
-  $('#rosterTable tbody').innerHTML=pl.length?shown.map(p=>`<tr class="${p.goals>0?'q':''}"><td><input class="dorsal${dupNum(p)?' dup':''}" type="text" maxlength="6" inputmode="tel" autocomplete="off" placeholder="–" value="${esc(p.num??'')}" title="${dupNum(p)?'Otro jugador del equipo tiene este mismo número':''}" data-id="${p.id}" aria-label="Número de ${esc(p.name)}"></td><td class="tn" title="${esc(p.name)}">${hl(p.name,q)}${susBadge(p)}</td>${goalCtl(p)}${cardCtl(p,'yc')}${cardCtl(p,'rc')}<td><button class="del" type="button" data-act="del" data-id="${p.id}" aria-label="Quitar a ${esc(p.name)} de la planilla">×</button></td></tr>`).join('')
+  $('#rosterTable tbody').innerHTML=pl.length?shown.map(p=>`<tr class="${p.goals>0?'q':''}"><td><input class="dorsal${dupNum(p)?' dup':''}" type="text" maxlength="6" inputmode="tel" autocomplete="off" placeholder="–" value="${esc(p.num??'')}" title="${dupNum(p)?'Otro jugador del equipo tiene este mismo número':''}" data-id="${p.id}" aria-label="Número de ${esc(p.name)}"></td><td class="tn" title="${esc(p.name)}">${hl(p.name,q)}${twiceBadge(p)}${susBadge(p)}</td>${goalCtl(p)}${cardCtl(p,'yc')}${cardCtl(p,'rc')}<td><button class="del" type="button" data-act="del" data-id="${p.id}" aria-label="Quitar a ${esc(p.name)} de la planilla">×</button></td></tr>`).join('')
     :'<tr class="empty-row"><td colspan="6">Este equipo aún no tiene jugadores. Agréguelos uno por uno o pegue la lista completa.</td></tr>';
 }
+// Un jugador solo puede estar inscrito en un equipo: se compara el nombre sin mayúsculas, tildes ni espacios de más.
+const playerKey=n=>normTxt(n);
+const findPlayer=name=>{const k=playerKey(name);return S.scorers.find(p=>playerKey(p.name)===k)};
 function tryAdd(team,num,name){
-  if(S.scorers.some(p=>p.team===team&&p.name.toLowerCase()===name.toLowerCase()))return'dup';
+  const ex=findPlayer(name);
+  if(ex&&ex.team===team)return'dup';
+  if(ex){lastOther=ex;return'other'}
   S.scorers.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,7),num,name,team,goals:0});return'ok';
 }
+let lastOther=null;
+const twiceBadge=p=>{const o=S.scorers.filter(x=>x!==p&&x.team!==p.team&&playerKey(x.name)===playerKey(p.name));return o.length?`<span class="twice" title="También inscrito en ${esc(o.map(x=>nm(x.team)).join(', '))}">También en ${esc(o.map(x=>nm(x.team)).join(', '))}</span>`:''};
+const otherMsg=p=>p.name+' ya está inscrito en '+nm(p.team)+(p.num!=null?' con el número '+p.num:'')+'. Un jugador no puede estar en dos equipos.';
 function addScorer(){
   const n=$('#pName'),numEl=$('#pNum'),name=n.value.trim(),num=num0(numEl.value);
   if(normDorsal(numEl.value)!=null&&num==null){toast('Escriba un número como 7, 23 o 2+1.');numEl.focus();return}
   if(!name){toast('Escriba el nombre del jugador.');n.focus();return}
   const r=tryAdd(rosterTeam,num,name);
   if(r==='dup'){toast(name+' ya está en '+nm(rosterTeam)+'.');return}
+  if(r==='other'){showAlert('⚠️ Jugador inscrito en otro equipo',otherMsg(lastOther)+' Si debe cambiar de equipo, quítelo primero de la planilla de '+nm(lastOther.team)+'.').then(()=>n.focus());return}
   if(r==='num'){toast('El número '+num+' ya está usado en '+nm(rosterTeam)+'.');numEl.focus();return}
   n.value='';numEl.value='';save();refresh();numEl.focus();toast(name+' agregado a '+nm(rosterTeam)+'.');
 }
@@ -1224,7 +1251,7 @@ function sheetRows(aoa){
   return aoa.map(cellsToRow);
 }
 function importRows(rows){
-  const added={},skip=[],unknown={};let ok=0;
+  const added={},skip=[],unknown={},others=[];let ok=0;
   rows.forEach(r=>{
     const name=String(r.name??'').replace(/\s+/g,' ').trim();if(!name)return;
     let team=rosterTeam;
@@ -1232,10 +1259,13 @@ function importRows(rows){
     const n=num0(r.num);
     const res=tryAdd(team,n,name);
     if(res==='ok'){ok++;added[team]=(added[team]||0)+1}
+    else if(res==='other'){others.push(name+' → ya está en '+nm(lastOther.team));skip.push(name+' ('+nm(team)+'): ya está inscrito en '+nm(lastOther.team))}
     else skip.push(name+' ('+nm(team)+'): '+(res==='num'?'el número '+n+' ya lo usa otro jugador':'ya estaba registrado'));
   });
   if(ok)save();
   refresh();
+  if(others.length)showAlert('⚠️ '+plural(others.length,'jugador ya está inscrito','jugadores ya están inscritos')+' en otro equipo',
+    'No se agregaron porque un jugador no puede estar en dos equipos: '+others.slice(0,8).join('; ')+(others.length>8?'; y '+(others.length-8)+' más':'')+'.');
   return{ok,added,skip,unknown};
 }
 function showImport(res,el){
@@ -1278,11 +1308,12 @@ $('#xlsTpl').addEventListener('click',()=>{
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Jugadores');XLSX.writeFile(wb,'plantilla_jugadores.xlsx');
 });
 $('#pSearch').addEventListener('input',()=>{frozen=null;renderRoster()});
+$('#dupBox').addEventListener('click',e=>{const b=e.target.closest('[data-openteam]');if(!b)return;rosterTeam=+b.dataset.openteam;frozen=null;refresh();$('#rosterPanel').scrollIntoView({behavior:reduceMotion()?'auto':'smooth',block:'start'})});
 // Cerrar la planilla al tocar fuera de ella (no cuenta tocar los equipos, ventanas de confirmación ni avisos)
 document.addEventListener('pointerdown',e=>{
   if(rosterTeam==null)return;
   const path=e.composedPath?e.composedPath():[];
-  const inside=path.some(n=>n&&n.id&&(n.id==='rosterPanel'||n.id==='rosterChips'||n.id==='toast')||n&&n.classList&&n.classList.contains('modal'));
+  const inside=path.some(n=>n&&n.id&&(n.id==='rosterPanel'||n.id==='rosterChips'||n.id==='toast'||n.id==='dupBox')||n&&n.classList&&n.classList.contains('modal'));
   if(inside||[...document.querySelectorAll('.modal')].some(m=>!m.hidden))return;
   const a=document.activeElement;if(a&&a.closest&&a.closest('#rosterPanel'))a.blur();
   rosterTeam=null;frozen=null;renderRoster();
@@ -1361,6 +1392,10 @@ $('#clearNums').addEventListener('click',async()=>{
   const again=$(`${sel} button[data-act="${act}"][data-id="${p.id}"]`);
   (again&&!again.disabled?again:$(`${sel} button[data-act="inc"][data-id="${p.id}"]`))?.focus();
 }));
+function showAlert(title,text){
+  const n=$('#mNo'),was=n.hidden;n.hidden=true;
+  return askConfirm(title,text,'Entendido').then(v=>{n.hidden=was;return v});
+}
 function askConfirm(title,text,yes){
   return new Promise(resolve=>{
     const m=$('#modal'),y=$('#mYes'),n=$('#mNo'),prev=document.activeElement;
