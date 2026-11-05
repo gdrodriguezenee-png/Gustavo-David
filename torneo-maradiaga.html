@@ -158,6 +158,31 @@ input[type=text],input[type=number]{font:inherit;color:var(--ink);background:var
 .roster{background:var(--paper);border:1.5px solid var(--line);border-radius:10px;padding:16px;max-width:780px}
 .rhead{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 12px;margin-bottom:10px}
 .rhead h3{margin:0;font:700 28px/1.1 var(--hand);color:var(--marker)}
+.printbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:0 0 14px}
+.printbar .gs{color:var(--muted)}
+.printbar label{display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--muted)}
+.printbar input{accent-color:var(--marker)}
+#printArea{display:none}
+@media print{
+  @page{size:letter portrait;margin:14mm 12mm}
+  html,body{background:#fff!important;color:#000!important}
+  body>*:not(#printArea){display:none!important}
+  #printArea{display:block!important;font:11pt/1.35 Arial,Helvetica,sans-serif;color:#000}
+  .pt{page-break-after:always;break-after:page}
+  .pt:last-child{page-break-after:auto;break-after:auto}
+  .pt .ph1{margin:0;font:700 12pt Arial;text-align:center}
+  .pt .ph2{margin:0 0 10px;font:700 13pt Arial;text-align:center}
+  .pt h2{margin:10px 0 2px;font:700 18pt Arial;border-bottom:2px solid #000;padding-bottom:3px}
+  .pt .meta{display:flex;flex-wrap:wrap;gap:4px 24px;margin:4px 0 10px;font-size:10.5pt}
+  .pt table{width:100%;border-collapse:collapse}
+  .pt th,.pt td{border:1px solid #555;padding:4px 6px;text-align:center}
+  .pt th{background:#e8e8e8!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:10pt}
+  .pt td.n{text-align:left}
+  .pt tr{page-break-inside:avoid;break-inside:avoid}
+  .pt .foot{margin-top:8px;font-size:9.5pt;color:#333;display:flex;justify-content:space-between}
+  .pt .firma{margin-top:36px;display:flex;justify-content:space-between;gap:40px;font-size:10pt}
+  .pt .firma span{flex:1;border-top:1px solid #000;padding-top:3px;text-align:center}
+}
 .dupbox{background:var(--amber-bg);border-left:4px solid var(--danger);border-radius:8px;padding:12px 16px;margin:0 0 14px;max-width:900px}
 .dupbox[hidden]{display:none}
 .dupbox p{margin:0 0 6px;font-weight:600}
@@ -538,11 +563,16 @@ footer{margin-top:48px;font-size:13px;color:var(--muted)}
       </div>
       <div class="iresult" id="importResult" aria-live="polite" hidden></div>
     </div>
+    <div class="printbar">
+      <button class="btn ghost sm" id="printAll" type="button">🖨 Imprimir todos los equipos</button>
+      <label><input type="checkbox" id="printStats" checked> Incluir goles y tarjetas</label>
+      <span class="gs">Cada equipo sale en su propia hoja.</span>
+    </div>
     <div class="dupbox" id="dupBox" role="alert" hidden></div>
     <div class="chips" id="rosterChips" role="tablist" aria-label="Equipos"></div>
     <p class="rclosed" id="rosterClosed">Toque un equipo para abrir su planilla. Vuelva a tocarlo para cerrarla.</p>
     <div class="roster" id="rosterPanel" role="tabpanel" aria-labelledby="rosterTitle" hidden>
-      <div class="rhead"><h3 id="rosterTitle"></h3><span class="gs" id="rosterCount"></span></div>
+      <div class="rhead"><h3 id="rosterTitle"></h3><span class="gs" id="rosterCount"></span><button class="btn ghost sm" id="printOne" type="button">🖨 Imprimir este equipo</button></div>
       <div class="addp">
         <input type="text" id="pNum" maxlength="6" inputmode="tel" autocomplete="off" placeholder="N.º" aria-label="Número del jugador, por ejemplo 7 o 2+1">
         <input type="text" id="pName" maxlength="50" placeholder="Nombre del jugador" aria-label="Nombre del jugador" autocomplete="off">
@@ -1016,7 +1046,7 @@ function refresh(){
   const champ=$('#champ');
   champ.classList.toggle('won',C.champ!=null);
   $('#champName').textContent=C.champ!=null?nm(C.champ):'Por definir';
-  $$('main input, main textarea').forEach(e=>{if(RO)e.disabled=true;else if(!e.closest('.match'))e.disabled=false});
+  $$('main input, main textarea').forEach(e=>{if(e.id==='pSearch'||e.id==='printStats'){e.disabled=false;return}if(RO)e.disabled=true;else if(!e.closest('.match'))e.disabled=false});
   const pod=[];if(C.runner!=null)pod.push('Subcampeón: <b>'+esc(nm(C.runner))+'</b>');if(C.third!=null)pod.push('Tercer lugar: <b>'+esc(nm(C.third))+'</b>');
   $('#podium').innerHTML=pod.join('<br>');
   const t3=$('.round.pos .third:not(.tspacer)'),sp=$('.tspacer');if(t3&&sp)sp.style.height=t3.offsetHeight+'px';
@@ -1308,6 +1338,28 @@ $('#xlsTpl').addEventListener('click',()=>{
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Jugadores');XLSX.writeFile(wb,'plantilla_jugadores.xlsx');
 });
 $('#pSearch').addEventListener('input',()=>{frozen=null;renderRoster()});
+/* ---------- imprimir planillas ---------- */
+function printTeams(list){
+  const stats=$('#printStats').checked,when=new Date().toLocaleString('es-HN',{dateStyle:'long',timeStyle:'short'});
+  const pos=t=>{const L=groupOf(t);return S.drawn&&L?'Grupo '+L+' · posición '+L+(S.groups[L].indexOf(t)+1):''};
+  $('#printArea').innerHTML=list.map(t=>{
+    const ps=S.scorers.filter(p=>p.team===t).sort((a,b)=>cmpDorsal(a.num,b.num)||a.name.localeCompare(b.name,'es'));
+    const kp=(S.keepers[t]||'').trim();
+    const rows=ps.length?ps.map((p,i)=>`<tr><td>${i+1}</td><td>${esc(p.num??'')}</td><td class="n">${esc(p.name)}</td>${stats?`<td>${p.goals||''}</td><td>${yc(p)||''}</td><td>${rc(p)||''}</td>`:'<td></td>'}</tr>`).join('')
+      :`<tr><td colspan="${stats?6:4}">Sin jugadores registrados.</td></tr>`;
+    const tg=ps.reduce((a,p)=>a+(p.goals||0),0),ty=ps.reduce((a,p)=>a+yc(p),0),tr=ps.reduce((a,p)=>a+rc(p),0);
+    return `<section class="pt"><p class="ph1">Torneo de Futbolito STENEE 2026</p><p class="ph2">“Luis Enrique Maradiaga González”</p>
+      <h2>${esc(nm(t))}</h2>
+      <div class="meta">${pos(t)?'<span>'+esc(pos(t))+'</span>':''}<span>${plural(ps.length,'jugador','jugadores')}</span>${kp?'<span>Portero: '+esc(kp)+'</span>':''}${stats?`<span>${plural(tg,'gol','goles')} · ${plural(ty,'amarilla','amarillas')} · ${plural(tr,'roja','rojas')}</span>`:''}</div>
+      <table><thead><tr><th style="width:32px">#</th><th style="width:60px">N.º</th><th>Nombre del jugador</th>${stats?'<th style="width:56px">Goles</th><th style="width:72px">Amarillas</th><th style="width:56px">Rojas</th>':'<th style="width:34%">Firma</th>'}</tr></thead><tbody>${rows}</tbody></table>
+      <div class="firma"><span>Delegado del equipo</span><span>Comité organizador</span></div>
+      <div class="foot"><span>Impreso el ${esc(when)}</span><span>${esc(nm(t))}</span></div></section>`;
+  }).join('');
+  setTimeout(()=>window.print(),50);
+}
+$('#printAll').addEventListener('click',()=>printTeams(teamOrder()));
+$('#printOne').addEventListener('click',()=>{if(rosterTeam!=null)printTeams([rosterTeam])});
+window.addEventListener('afterprint',()=>{$('#printArea').innerHTML=''});
 $('#dupBox').addEventListener('click',e=>{const b=e.target.closest('[data-openteam]');if(!b)return;rosterTeam=+b.dataset.openteam;frozen=null;refresh();$('#rosterPanel').scrollIntoView({behavior:reduceMotion()?'auto':'smooth',block:'start'})});
 // Cerrar la planilla al tocar fuera de ella (no cuenta tocar los equipos, ventanas de confirmación ni avisos)
 document.addEventListener('pointerdown',e=>{
@@ -2077,5 +2129,6 @@ if(ONLINE){
 else showGate('setup');
 })();
 </script>
+<div id="printArea" aria-hidden="true"></div>
 </body>
 </html>
