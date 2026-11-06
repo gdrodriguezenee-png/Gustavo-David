@@ -605,11 +605,11 @@ footer{margin-top:48px;font-size:13px;color:var(--muted)}
       <div class="salso" id="pSearchAlso" hidden></div>
       <div class="rtools">
         <span><span class="hint" style="margin-right:6px">Ordenar por</span><span class="seg" role="group" aria-label="Ordenar jugadores"><button type="button" data-sort="num">Número</button><button type="button" data-sort="name">Nombre</button><button type="button" data-sort="add">Como se agregaron</button></span></span>
-        <span class="hint">Toque el número de un jugador para cambiarlo; con Enter pasa al siguiente. Se puede repetir un número o escribir, por ejemplo, 2+1.</span>
+        <span class="hint">Toque el número de un jugador para cambiarlo; con Enter pasa al siguiente. Se puede repetir un número o escribir, por ejemplo, 2+1. Las tarjetas que se ven aquí son las que faltan por pagar.</span>
         <button class="linkish" id="clearNums" type="button">Quitar todos los números</button>
       </div>
       <div class="tw"><table class="std" id="rosterTable">
-        <thead><tr><th title="Número de camiseta">N.º</th><th class="tn">Jugador</th><th>Goles</th><th title="Tarjetas amarillas"><span class="card-y" aria-hidden="true"></span>Amarillas</th><th title="Tarjetas rojas"><span class="card-r" aria-hidden="true"></span>Rojas</th><th><span style="position:absolute;left:-9999px">Quitar</span></th></tr></thead>
+        <thead><tr><th title="Número de camiseta">N.º</th><th class="tn">Jugador</th><th>Goles</th><th title="Tarjetas amarillas sin pagar"><span class="card-y" aria-hidden="true"></span>Amarillas</th><th title="Tarjetas rojas sin pagar"><span class="card-r" aria-hidden="true"></span>Rojas</th><th><span style="position:absolute;left:-9999px">Quitar</span></th></tr></thead>
         <tbody></tbody>
       </table></div>
     </div>
@@ -1217,7 +1217,7 @@ $('#cardForm').addEventListener('submit',e=>{
   const b=document.querySelector(`#rosterTable button[data-act="${kind==='y'?'yc':'rc'}-inc"][data-id="${p.id}"]`);if(b)b.focus();
 });
 async function removeLastCard(p,kind){
-  const list=cardsOf(p,kind);if(!list.length)return;
+  const list=cardsOf(p,kind).filter(c=>!c.paid);if(!list.length)return;
   const c=list[list.length-1];
   if(!await askConfirm('¿Quitar la última tarjeta '+(kind==='y'?'amarilla':'roja')+'?',p.name+': '+matchLabel(c.match)+(c.paid?'. Esta tarjeta ya estaba pagada.':'.'),'Quitar tarjeta'))return;
   removeCard(c.id);
@@ -1251,7 +1251,7 @@ $('#clPaid').addEventListener('change',renderCardLog);
 $('#cardLog').addEventListener('change',e=>{
   const i=e.target.closest('[data-pay]');if(!i||RO)return;const c=CL().find(x=>x.id===i.dataset.pay);if(!c)return;
   c.paid=i.checked;c.paidAt=c.paid?new Date().toISOString():null;save();refresh();
-  toast(c.paid?'Tarjeta marcada como pagada.':'Tarjeta marcada como sin pagar.');
+  toast(c.paid?'Tarjeta pagada: ya no aparece en la planilla del equipo.':'Tarjeta marcada como sin pagar: vuelve a aparecer en la planilla.');
 });
 $('#cardLog').addEventListener('click',async e=>{
   const b=e.target.closest('[data-rmcard]');if(!b||RO)return;const c=CL().find(x=>x.id===b.dataset.rmcard);if(!c)return;const p=pById(c.pid);
@@ -1276,8 +1276,10 @@ function cardState(p){
   return null;
 }
 const susBadge=p=>{const c=cardState(p);return c?`<span class="sus ${c.s==='warn'?'warn':''}">${esc(c.txt)}</span>`:''};
-const cardCtl=(p,kind)=>{const v=kind==='yc'?yc(p):rc(p),lbl=kind==='yc'?'amarilla':'roja';
-  return `<td class="ctl"><span class="ccnt"><button class="step" type="button" data-act="${kind}-dec" data-id="${p.id}" aria-label="Quitar una tarjeta ${lbl} a ${esc(p.name)}" ${v?'':'disabled'}>−</button><span class="gnum"><span class="card-${kind==='yc'?'y':'r'}" aria-hidden="true"></span>${v}</span><button class="step" type="button" data-act="${kind}-inc" data-id="${p.id}" aria-label="Sumar una tarjeta ${lbl} a ${esc(p.name)}">+</button></span></td>`};
+// En la planilla solo se cuentan las tarjetas sin pagar; las pagadas siguen en la sección Tarjetas.
+const unpaid=(p,k)=>CL().filter(c=>c.pid===p.id&&c.kind===k&&!c.paid).length;
+const cardCtl=(p,kind)=>{const k=kind==='yc'?'y':'r',v=unpaid(p,k),pd=cardsOf(p,k).length-v,lbl=kind==='yc'?'amarilla':'roja';
+  return `<td class="ctl"><span class="ccnt"><button class="step" type="button" data-act="${kind}-dec" data-id="${p.id}" aria-label="Quitar una tarjeta ${lbl} sin pagar a ${esc(p.name)}" ${v?'':'disabled'}>−</button><span class="gnum" title="${v} sin pagar${pd?' · '+pd+(pd===1?' pagada':' pagadas'):''}"><span class="card-${kind==='yc'?'y':'r'}" aria-hidden="true"></span>${v}</span><button class="step" type="button" data-act="${kind}-inc" data-id="${p.id}" aria-label="Sumar una tarjeta ${lbl} a ${esc(p.name)}">+</button></span></td>`};
 function renderCards(){
   renderCardLog();
   const L=cardLimit(),li=$('#cardLimit');if(document.activeElement!==li)li.value=L;
@@ -1361,8 +1363,8 @@ function renderRoster(){
   if(!isOpen)return;
   $('#rosterTitle').textContent=nm(rosterTeam);
   const goals=pl.reduce((a,p)=>a+p.goals,0);
-  const ty=pl.reduce((a,p)=>a+yc(p),0),tr=pl.reduce((a,p)=>a+rc(p),0);
-  $('#rosterCount').textContent=(S.drawn?'Grupo '+groupOf(rosterTeam)+'. ':'')+plural(pl.length,'jugador','jugadores')+', '+plural(goals,'gol','goles')+', '+plural(ty,'amarilla','amarillas')+', '+plural(tr,'roja','rojas');
+  const ty=pl.reduce((a,p)=>a+unpaid(p,'y'),0),tr=pl.reduce((a,p)=>a+unpaid(p,'r'),0);
+  $('#rosterCount').textContent=(S.drawn?'Grupo '+groupOf(rosterTeam)+'. ':'')+plural(pl.length,'jugador','jugadores')+', '+plural(goals,'gol','goles')+', '+plural(ty,'amarilla','amarillas')+' y '+plural(tr,'roja','rojas')+' sin pagar';
   const q=pQuery(),shown=q?pl.filter(p=>pMatch(p,q)):pl;
   $('#pSearchX').hidden=!q;
   $('#pSearchCount').textContent=q?(shown.length?shown.length+' de '+plural(pl.length,'jugador','jugadores'):'Sin resultados en '+nm(rosterTeam)):'';
