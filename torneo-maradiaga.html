@@ -91,6 +91,19 @@ h2{font:700 32px/1.15 var(--hand);margin:52px 0 6px;color:var(--ink)}
 .served{font:600 12.5px var(--sans);padding:4px 9px;border-radius:6px;border:1.5px solid var(--line);background:var(--paper);color:var(--ink);cursor:pointer}
 .limitrow label,.limitrow>span{}
 body.ro .limitrow label,body.ro .limitrow>span:not(#cardLimitTxt){display:none}
+.cllog{margin-top:20px}
+.clfilters{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin:0 0 10px}
+.clfilters select{font:inherit;font-size:14px;color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:6px;padding:7px 9px;max-width:100%}
+#clSummary{font-size:14px;color:var(--muted)}
+#cardLog td small{display:block;font-size:11.5px;color:var(--muted)}
+#cardLog tr.unpaid td:first-child{box-shadow:inset 3px 0 0 var(--danger)}
+.paytog{display:inline-flex;align-items:center;gap:6px;font-size:13.5px;cursor:pointer;white-space:nowrap}
+.paytog input{width:18px;height:18px;accent-color:var(--marker)}
+.paid{color:var(--marker);font-weight:600}.nopaid{color:var(--danger);font-weight:600}
+.fines{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 16px;font-size:15px}
+.fines input{width:90px;text-align:center;font:600 16px var(--cond);padding:6px;color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:6px}
+body.ro .fines input{border-style:dashed}
+#cdTitle .card-y,#cdTitle .card-r{width:14px;height:19px;margin-right:8px}
 .limitrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 16px;font-size:15px}
 .limitrow input{width:64px;text-align:center;font:600 16px var(--cond);padding:6px;color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:6px}
 body.fixed #draw2,body.fixed #loadGroups,body.fixed #drawMatches,body.fixed #normalOrder,body.fixed #addTeam,body.fixed .tdel,body.fixed #lockBtn{display:none}
@@ -604,15 +617,16 @@ footer{margin-top:48px;font-size:13px;color:var(--muted)}
 
   <section id="tarjetas" aria-labelledby="t-ta">
     <h2 id="t-ta">Tarjetas</h2>
-    <p class="intro">Se anotan en la planilla de cada equipo con los botones + y −. Aquí se ven los totales y los jugadores que deben cumplir suspensión.</p>
+    <p class="intro">Cada tarjeta se anota por partido desde la planilla del equipo, con el botón +, y se indica si la multa ya se pagó. Aquí se ven los totales, los pagos pendientes y los jugadores que deben cumplir suspensión.</p>
     <div class="limitrow"><label for="cardLimit">Avisar cuando un jugador llegue a</label><input id="cardLimit" type="number" min="1" max="10" inputmode="numeric"><span>tarjetas amarillas. Una roja siempre genera aviso.</span><span id="cardLimitTxt" style="color:var(--muted)"></span></div>
+    <div class="fines"><span>Multa por tarjeta (opcional):</span><label>amarilla L <input id="fineY" type="number" min="0" step="1" inputmode="decimal" placeholder="0"></label><label>roja L <input id="fineR" type="number" min="0" step="1" inputmode="decimal" placeholder="0"></label></div>
     <div class="cardalert" id="cardAlert" aria-live="polite"></div>
     <div class="cardsbox">
       <article class="award" aria-labelledby="t-tq">
         <h3 id="t-tq">Por equipo</h3>
         <p class="sub">Menos tarjetas va primero. Se cuenta 1 punto por amarilla y 3 por roja.</p>
         <div class="tw"><table class="std" id="cardTeams">
-          <thead><tr><th>#</th><th class="tn">Equipo</th><th><span class="card-y" aria-hidden="true"></span>Amarillas</th><th><span class="card-r" aria-hidden="true"></span>Rojas</th><th title="Puntos de disciplina">Pts</th></tr></thead>
+          <thead><tr><th>#</th><th class="tn">Equipo</th><th><span class="card-y" aria-hidden="true"></span>Amarillas</th><th><span class="card-r" aria-hidden="true"></span>Rojas</th><th title="Puntos de disciplina">Pts</th><th title="Tarjetas sin pagar">Sin pagar</th></tr></thead>
           <tbody></tbody>
         </table></div>
       </article>
@@ -625,6 +639,19 @@ footer{margin-top:48px;font-size:13px;color:var(--muted)}
         </table></div>
       </article>
     </div>
+    <article class="award cllog" aria-labelledby="t-tl">
+      <h3 id="t-tl">Tarjetas por partido</h3>
+      <p class="sub">Cada tarjeta con su partido y su estado de pago. Marque la casilla cuando se pague la multa.</p>
+      <div class="clfilters">
+        <select id="clMatch" aria-label="Filtrar por partido"><option value="*">Todos los partidos</option></select>
+        <select id="clPaid" aria-label="Filtrar por pago"><option value="*">Pagadas y sin pagar</option><option value="no">Solo sin pagar</option><option value="si">Solo pagadas</option></select>
+        <span id="clSummary"></span>
+      </div>
+      <div class="tw"><table class="std" id="cardLog">
+        <thead><tr><th class="tn">Partido</th><th class="tn">Jugador</th><th class="tn">Equipo</th><th>Tarjeta</th><th>Pago</th><th><span style="position:absolute;left:-9999px">Quitar</span></th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+    </article>
   </section>
 
   <section id="premios" aria-labelledby="t-pr">
@@ -665,7 +692,8 @@ footer{margin-top:48px;font-size:13px;color:var(--muted)}
       <div><h3>Fase final</h3><p>Los perdedores de semifinal juegan por el <b>tercer lugar</b> y los ganadores por el <b>primer lugar</b>.</p></div>
       <div><h3>Días de juego</h3><p>Todos los partidos se juegan <b>solo los viernes</b>, según el calendario.</p></div>
       <div><h3>Empates en llaves</h3><p>No hay tiempo extra: si el partido termina empatado, se define por penales.</p></div>
-      <div><h3>Tarjetas</h3><p>Al llegar al límite de amarillas, o con una roja, el jugador debe cumplir suspensión. Cuando la cumpla, el administrador la marca como cumplida y su conteo vuelve a empezar.</p></div>
+      <div><h3>Tarjetas por partido</h3><p>Cada tarjeta queda registrada en el partido en que se recibió, con su estado de pago (pagada o sin pagar). Si un jugador recibe dos amarillas en el mismo partido, la página avisa.</p></div>
+      <div><h3>Suspensiones</h3><p>Al llegar al límite de amarillas, o con una roja, el jugador debe cumplir suspensión. Cuando la cumpla, el administrador la marca como cumplida y su conteo vuelve a empezar.</p></div>
       <div><h3>Mejor goleador</h3><p>El jugador con más goles en todo el torneo. Los penales de una definición no cuentan.</p></div>
       <div><h3>Portero menos batido</h3><p>Menor promedio de goles recibidos por partido. Si empatan, gana quien recibió menos goles y luego quien jugó más partidos.</p></div>
     </div>
@@ -680,6 +708,16 @@ footer{margin-top:48px;font-size:13px;color:var(--muted)}
   </div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 </main>
+<div class="modal" id="cardModal" hidden>
+  <form class="mbox" id="cardForm" role="dialog" aria-modal="true" aria-labelledby="cdTitle" novalidate>
+    <h3 id="cdTitle">Tarjeta</h3>
+    <p id="cdWho" style="margin:0 0 12px;font-weight:600"></p>
+    <label class="fld"><span>Partido</span><select id="cdMatch"></select></label>
+    <label class="chk"><input type="checkbox" id="cdPaid"> Ya se pagó la multa <span id="cdFine" style="color:var(--muted);margin-left:6px"></span></label>
+    <p class="lgerr" id="cdErr" role="alert"></p>
+    <div class="mact"><button class="btn ghost" id="cdCancel" type="button">Cancelar</button><button class="btn" type="submit">Anotar tarjeta</button></div>
+  </form>
+</div>
 <div class="modal" id="calModal" hidden>
   <form class="mbox" id="calForm" role="dialog" aria-modal="true" aria-labelledby="cTitle" novalidate>
     <h3 id="cTitle">Fecha del partido</h3>
@@ -822,6 +860,9 @@ function normalize(o){
         const k2=base.findIndex(b=>(b.x===x&&b.y===y)||(b.x===y&&b.y===x));if(k2<0)return;
         gm[L+k2]=base[k2].x===x?[r[0],r[1]]:[r[1],r[0]];});});
     o.gm=gm;delete o.perm;o.order=null;o.matchAt=null;
+  }
+  if(!Array.isArray(o.cardLog)){ // versión anterior: solo había conteos; se pasan a registros sin partido asignado
+    o.cardLog=[];o.scorers.forEach(p=>{[['y',p.yc],['r',p.rc]].forEach(([k,n])=>{for(let i=0;i<(+n||0);i++)o.cardLog.push({id:p.id+'-'+k+i,pid:p.id,kind:k,match:null,paid:false,at:''})})});
   }
   return o;
 }
@@ -1053,8 +1094,8 @@ function refresh(){
 }
 
 /* ---------- acciones ---------- */
-const hasResults=()=>Object.values(S.gm).some(r=>r&&(r[0]!=null||r[1]!=null))||Object.values(S.ko).some(r=>r&&Object.values(r).some(v=>v!=null))||S.scorers.some(p=>p.goals>0||p.yc>0||p.rc>0);
-function clearResults(){S.gm={};S.ko={};S.scorers.forEach(p=>{p.goals=0;p.yc=0;p.rc=0;p.ycBase=0;p.rcBase=0});$$('input.sc').forEach(i=>i.value='');}
+const hasResults=()=>Object.values(S.gm).some(r=>r&&(r[0]!=null||r[1]!=null))||Object.values(S.ko).some(r=>r&&Object.values(r).some(v=>v!=null))||S.scorers.some(p=>p.goals>0)||(Array.isArray(S.cardLog)&&S.cardLog.length>0);
+function clearResults(){S.gm={};S.ko={};S.cardLog=[];S.scorers.forEach(p=>{p.goals=0;p.yc=0;p.rc=0;p.ycBase=0;p.rcBase=0});$$('input.sc').forEach(i=>i.value='');}
 
 /* ---------- premios individuales ---------- */
 function teamStats(C){
@@ -1117,9 +1158,115 @@ const sameDorsal=(a,b)=>a!=null&&b!=null&&normDorsal(a)===normDorsal(b);
 const dupNum=p=>p.num!=null&&S.scorers.some(x=>x!==p&&x.team===p.team&&sameDorsal(x.num,p.num));
 let rosterTeam=null;
 const teamOrder=()=>S.drawn?LETTERS.flatMap(L=>S.groups[L]):[...S.teams.keys()];
+/* ---------- registro de tarjetas por partido ---------- */
+// Cada tarjeta es un registro: jugador, tipo (y=amarilla, r=roja), partido y si la multa ya se pagó.
+const CL=()=>{if(!Array.isArray(S.cardLog))S.cardLog=[];return S.cardLog};
+const pById=id=>S.scorers.find(p=>p.id===id);
+const cardsOf=(p,k)=>CL().filter(c=>c.pid===p.id&&(!k||c.kind===k));
+const money=v=>{const n=+v;return n>0?'L '+n.toLocaleString('es-HN',{minimumFractionDigits:0,maximumFractionDigits:2}):''};
+const fineOf=c=>+(c.kind==='y'?S.fineY:S.fineR)||0;
+function matchesOfTeam(t){
+  const C=compute(),out=[];
+  if(S.drawn)allKeys().forEach(m=>{const g=gsched(m.L)[m.k];if(!g)return;const a=S.groups[m.L][g.x],b=S.groups[m.L][g.y];
+    if(a===t||b===t)out.push({key:m.key,a,b,label:'Grupo '+m.L+': '+nm(a)+' vs '+nm(b)})});
+  KO.forEach(k=>{const m=C.M[k.id];if(!m)return;if(m.a.t===t||m.b.t===t)out.push({key:k.id,a:m.a.t,b:m.b.t,label:k.label+': '+nm(m.a.t)+' vs '+nm(m.b.t)})});
+  const dt=x=>{const c=S.cal&&S.cal[x.key];return c&&c.fecha?c.fecha+' '+(c.hora||''):'9999'};
+  out.forEach(x=>{x.when=calShort(x.key);x.sort=dt(x)});
+  return out.sort((a,b)=>a.sort.localeCompare(b.sort));
+}
+function matchLabel(key){
+  if(!key)return'Sin partido asignado';
+  const L=key[0];
+  if(LETTERS.includes(L)&&/^\w\d+$/.test(key)&&S.groups[L]){const g=gsched(L)[+key.slice(1)];
+    if(g){const n=matchNo(key);return (n?'P'+n+' · ':'')+'Grupo '+L+': '+nm(S.groups[L][g.x])+' vs '+nm(S.groups[L][g.y])+(calShort(key)?' · '+calShort(key):'')}}
+  const k=KO.find(x=>x.id===key);if(k){const m=compute().M[k.id];
+    return k.label+(m&&m.a.t!=null&&m.b.t!=null?': '+nm(m.a.t)+' vs '+nm(m.b.t):'')+(calShort(key)?' · '+calShort(key):'')}
+  return key;
+}
+function defaultMatch(list){
+  const today=new Date();const iso=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+  const past=list.filter(x=>x.sort.slice(0,10)<=iso);
+  return (past.length?past[past.length-1]:list[0]||{}).key||'';
+}
+let cardDraft=null;
+function openCardDialog(p,kind){
+  const list=matchesOfTeam(p.team),sel=$('#cdMatch');
+  sel.innerHTML='<option value="">Sin partido asignado</option>'+list.map(x=>`<option value="${x.key}">${esc(x.label)}${x.when?' · '+esc(x.when):''}</option>`).join('');
+  sel.value=defaultMatch(list);
+  $('#cdTitle').innerHTML=`<span class="card-${kind}" aria-hidden="true"></span>Tarjeta ${kind==='y'?'amarilla':'roja'}`;
+  $('#cdWho').textContent=(p.num!=null?p.num+' · ':'')+p.name+' ('+nm(p.team)+')';
+  $('#cdPaid').checked=false;$('#cdFine').textContent=money(kind==='y'?S.fineY:S.fineR)?'Multa: '+money(kind==='y'?S.fineY:S.fineR):'';
+  $('#cdErr').textContent='';cardDraft={p,kind};$('#cardModal').hidden=false;sel.focus();
+}
+const closeCardDialog=()=>{$('#cardModal').hidden=true;const p=cardDraft&&cardDraft.p;cardDraft=null;
+  const b=p&&document.querySelector(`#rosterTable button[data-act$="-inc"][data-id="${p.id}"]`);if(b)b.focus()};
+$('#cdCancel').addEventListener('click',closeCardDialog);
+$('#cardModal').addEventListener('click',e=>{if(e.target===$('#cardModal'))closeCardDialog()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#cardModal').hidden)closeCardDialog()});
+$('#cardForm').addEventListener('submit',e=>{
+  e.preventDefault();if(!cardDraft)return;
+  const {p,kind}=cardDraft,match=$('#cdMatch').value||null,before=cardState(p);
+  const sameY=kind==='y'&&match?CL().filter(c=>c.pid===p.id&&c.kind==='y'&&c.match===match).length:0;
+  CL().push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),pid:p.id,kind,match,paid:$('#cdPaid').checked,at:new Date().toISOString()});
+  $('#cardModal').hidden=true;cardDraft=null;save();refresh();
+  const after=cardState(p);
+  if(sameY>=1)showAlert('⚠️ Segunda amarilla en el mismo partido',p.name+' ('+nm(p.team)+') ya tenía una amarilla en este partido. Revise si corresponde expulsión y, si es así, anote también la roja.');
+  else if(after&&after.s==='sus'&&(!before||before.s!=='sus'))toast('⚠️ '+p.name+' ('+nm(p.team)+'): '+after.txt.toLowerCase()+'. Debe cumplir suspensión.');
+  else if(after&&after.s==='warn'&&!before)toast(p.name+' está a una amarilla de la suspensión.');
+  else toast('Tarjeta '+(kind==='y'?'amarilla':'roja')+' anotada a '+p.name+(match?' en '+matchLabel(match).split(' · ').slice(0,2).join(' · '):'')+'.');
+  const b=document.querySelector(`#rosterTable button[data-act="${kind==='y'?'yc':'rc'}-inc"][data-id="${p.id}"]`);if(b)b.focus();
+});
+async function removeLastCard(p,kind){
+  const list=cardsOf(p,kind);if(!list.length)return;
+  const c=list[list.length-1];
+  if(!await askConfirm('¿Quitar la última tarjeta '+(kind==='y'?'amarilla':'roja')+'?',p.name+': '+matchLabel(c.match)+(c.paid?'. Esta tarjeta ya estaba pagada.':'.'),'Quitar tarjeta'))return;
+  removeCard(c.id);
+}
+function removeCard(id){
+  const c=CL().find(x=>x.id===id);if(!c)return;S.cardLog=CL().filter(x=>x!==c);
+  const p=pById(c.pid);if(p){p.ycBase=Math.min(p.ycBase||0,yc(p));p.rcBase=Math.min(p.rcBase||0,rc(p))}
+  save();refresh();toast('Tarjeta quitada.');
+}
+function renderCardLog(){
+  const fm=$('#clMatch'),fp=$('#clPaid'),cur=fm.value;
+  const log=CL().filter(c=>pById(c.pid));
+  const keys=[...new Set(log.map(c=>c.match||''))];
+  const ord=k=>{if(!k)return'zzzz';const c=S.cal&&S.cal[k];return (c&&c.fecha?c.fecha+(c.hora||''):'yyyy')+k};
+  keys.sort((a,b)=>ord(a).localeCompare(ord(b)));
+  fm.innerHTML='<option value="*">Todos los partidos</option>'+keys.map(k=>`<option value="${k}">${esc(matchLabel(k))}</option>`).join('');
+  fm.value=keys.includes(cur)||cur==='*'?cur:'*';
+  const show=log.filter(c=>(fm.value==='*'||(c.match||'')===fm.value)&&(fp.value==='*'||(fp.value==='no')===!c.paid));
+  const pend=log.filter(c=>!c.paid),pendMoney=pend.reduce((a,c)=>a+fineOf(c),0);
+  $('#clSummary').innerHTML=log.length?`<b>${plural(log.length,'tarjeta','tarjetas')}</b> en total · <b style="color:var(--danger)">${plural(pend.length,'sin pagar','sin pagar')}</b>${pendMoney?' ('+money(pendMoney)+')':''} · ${plural(log.length-pend.length,'pagada','pagadas')}`:'';
+  show.sort((a,b)=>ord(a.match||'').localeCompare(ord(b.match||''))||String(a.at).localeCompare(String(b.at)));
+  $('#cardLog tbody').innerHTML=show.length?show.map(c=>{const p=pById(c.pid);
+    return `<tr class="${c.paid?'':'unpaid'}"><td class="tn">${esc(matchLabel(c.match))}</td><td class="tn">${p.num!=null?esc(p.num)+' · ':''}${esc(p.name)}</td><td class="tn">${esc(nm(p.team))}</td><td><span class="card-${c.kind}" aria-label="${c.kind==='y'?'Amarilla':'Roja'}"></span>${fineOf(c)?'<small>'+money(fineOf(c))+'</small>':''}</td>
+      <td>${RO?(c.paid?'<span class="paid">Pagada</span>':'<span class="nopaid">Sin pagar</span>'):`<label class="paytog"><input type="checkbox" data-pay="${c.id}" ${c.paid?'checked':''}> ${c.paid?'Pagada':'Sin pagar'}</label>`}</td>
+      <td>${RO?'':`<button class="del" type="button" data-rmcard="${c.id}" aria-label="Quitar esta tarjeta">×</button>`}</td></tr>`}).join('')
+    :`<tr class="empty-row"><td colspan="6">${log.length?'No hay tarjetas con ese filtro.':'Todavía no hay tarjetas. Anótelas en la planilla de cada equipo con el botón +.'}</td></tr>`;
+  const fy=$('#fineY'),fr=$('#fineR');if(document.activeElement!==fy)fy.value=S.fineY||'';if(document.activeElement!==fr)fr.value=S.fineR||'';
+}
+$('#clMatch').addEventListener('change',renderCardLog);
+$('#clPaid').addEventListener('change',renderCardLog);
+$('#cardLog').addEventListener('change',e=>{
+  const i=e.target.closest('[data-pay]');if(!i||RO)return;const c=CL().find(x=>x.id===i.dataset.pay);if(!c)return;
+  c.paid=i.checked;c.paidAt=c.paid?new Date().toISOString():null;save();refresh();
+  toast(c.paid?'Tarjeta marcada como pagada.':'Tarjeta marcada como sin pagar.');
+});
+$('#cardLog').addEventListener('click',async e=>{
+  const b=e.target.closest('[data-rmcard]');if(!b||RO)return;const c=CL().find(x=>x.id===b.dataset.rmcard);if(!c)return;const p=pById(c.pid);
+  if(!await askConfirm('¿Quitar esta tarjeta?',(p?p.name+': ':'')+matchLabel(c.match)+'.','Quitar tarjeta'))return;
+  removeCard(c.id);
+});
+['fineY','fineR'].forEach(id=>$('#'+id).addEventListener('change',()=>{
+  if(RO)return;const v=$('#'+id).value.trim(),n=v===''?0:+v;
+  if(!(n>=0)){toast('Escriba un monto válido.');$('#'+id).value=S[id]||'';return}
+  S[id]=n||0;save();refresh();
+}));
+
 /* ---------- tarjetas ---------- */
 const cardLimit=()=>{const n=+S.cardLimit;return n>=1&&n<=10?Math.floor(n):3};
-const yc=p=>p.yc||0,rc=p=>p.rc||0;
+const yc=p=>CL().filter(c=>c.pid===p.id&&c.kind==='y').length,rc=p=>CL().filter(c=>c.pid===p.id&&c.kind==='r').length;
 const ycAct=p=>Math.max(0,yc(p)-(p.ycBase||0)),rcAct=p=>Math.max(0,rc(p)-(p.rcBase||0));
 function cardState(p){
   const y=ycAct(p),r=rcAct(p),L=cardLimit();
@@ -1132,6 +1279,7 @@ const susBadge=p=>{const c=cardState(p);return c?`<span class="sus ${c.s==='warn
 const cardCtl=(p,kind)=>{const v=kind==='yc'?yc(p):rc(p),lbl=kind==='yc'?'amarilla':'roja';
   return `<td class="ctl"><span class="ccnt"><button class="step" type="button" data-act="${kind}-dec" data-id="${p.id}" aria-label="Quitar una tarjeta ${lbl} a ${esc(p.name)}" ${v?'':'disabled'}>−</button><span class="gnum"><span class="card-${kind==='yc'?'y':'r'}" aria-hidden="true"></span>${v}</span><button class="step" type="button" data-act="${kind}-inc" data-id="${p.id}" aria-label="Sumar una tarjeta ${lbl} a ${esc(p.name)}">+</button></span></td>`};
 function renderCards(){
+  renderCardLog();
   const L=cardLimit(),li=$('#cardLimit');if(document.activeElement!==li)li.value=L;
   $('#cardLimitTxt').textContent=RO?'Se avisa suspensión al llegar a '+plural(L,'amarilla','amarillas')+' o con una roja.':'';
   const withC=S.scorers.filter(p=>yc(p)||rc(p));
@@ -1141,11 +1289,12 @@ function renderCards(){
   box.innerHTML=!sus.length&&!warn.length?'<p style="margin:0;font-weight:500">No hay jugadores suspendidos ni en riesgo de suspensión.</p>'
     :(sus.length?`<p>⚠️ ${plural(sus.length,'jugador debe','jugadores deben')} cumplir suspensión</p><ul>${sus.map(p=>item(p,true)).join('')}</ul>`:'')+
      (warn.length?`<p style="margin-top:${sus.length?'10px':'0'}">${plural(warn.length,'jugador está','jugadores están')} a una amarilla de la suspensión</p><ul>${warn.map(p=>item(p,false)).join('')}</ul>`:'');
-  const T=S.teams.map((_,t)=>{const ps=S.scorers.filter(p=>p.team===t);const a=ps.reduce((s,p)=>s+yc(p),0),r=ps.reduce((s,p)=>s+rc(p),0);return{t,a,r,pts:a+3*r}})
+  const T=S.teams.map((_,t)=>{const ps=S.scorers.filter(p=>p.team===t);const a=ps.reduce((s,p)=>s+yc(p),0),r=ps.reduce((s,p)=>s+rc(p),0);
+    const ids=new Set(ps.map(p=>p.id)),up=CL().filter(c=>ids.has(c.pid)&&!c.paid),um=up.reduce((x,c)=>x+fineOf(c),0);return{t,a,r,pts:a+3*r,up:up.length,um}})
     .sort((x,y)=>x.pts-y.pts||x.r-y.r||nm(x.t).localeCompare(nm(y.t),'es'));
   let pos=0,pk=null;
   $('#cardTeams tbody').innerHTML=T.map((x,i)=>{if(x.pts!==pk){pos=i+1;pk=x.pts}
-    return `<tr class="${x.pts===0?'':x.r?'t':''}"><td>${pos}</td><td class="tn">${esc(nm(x.t))}</td><td>${x.a}</td><td>${x.r}</td><td class="pts">${x.pts}</td></tr>`}).join('');
+    return `<tr class="${x.pts===0?'':x.r?'t':''}"><td>${pos}</td><td class="tn">${esc(nm(x.t))}</td><td>${x.a}</td><td>${x.r}</td><td class="pts">${x.pts}</td><td class="${x.up?'nopaid':''}">${x.up?x.up+(x.um?' · '+money(x.um):''):'–'}</td></tr>`}).join('');
   const P=[...withC].sort((a,b)=>(cardState(b)?.s==='sus')-(cardState(a)?.s==='sus')||rc(b)-rc(a)||yc(b)-yc(a)||a.name.localeCompare(b.name,'es'));
   $('#cardPlayers tbody').innerHTML=P.length?P.map(p=>{const c=cardState(p);
     return `<tr class="${c&&c.s==='sus'?'t':''}"><td>${p.num??'–'}</td><td class="tn">${esc(p.name)}</td><td class="tn">${esc(nm(p.team))}</td><td>${yc(p)}</td><td>${rc(p)}</td><td class="tn">${c?susBadge(p):(p.ycBase||p.rcBase?'Suspensión cumplida':'Habilitado')}</td></tr>`}).join('')
@@ -1428,14 +1577,12 @@ $('#clearNums').addEventListener('click',async()=>{
   const before=cardState(p);
   if(act==='inc')p.goals++;
   else if(act==='dec')p.goals=Math.max(0,p.goals-1);
-  else if(act==='yc-inc')p.yc=yc(p)+1;
-  else if(act==='yc-dec'){p.yc=Math.max(0,yc(p)-1);p.ycBase=Math.min(p.ycBase||0,p.yc)}
-  else if(act==='rc-inc')p.rc=rc(p)+1;
-  else if(act==='rc-dec'){p.rc=Math.max(0,rc(p)-1);p.rcBase=Math.min(p.rcBase||0,p.rc)}
+  else if(act==='yc-inc'||act==='rc-inc'){if(RO)return;openCardDialog(p,act==='yc-inc'?'y':'r');return}
+  else if(act==='yc-dec'||act==='rc-dec'){if(RO)return;await removeLastCard(p,act==='yc-dec'?'y':'r');return}
   else if(act==='del'){
     const extra=[p.goals?plural(p.goals,'gol','goles'):'',yc(p)?plural(yc(p),'amarilla','amarillas'):'',rc(p)?plural(rc(p),'roja','rojas'):''].filter(Boolean);
     if(!await askConfirm('¿Quitar a '+p.name+'?','Se borra de la planilla de '+nm(p.team)+(extra.length?' junto con sus '+extra.join(', '):'')+'.','Quitar jugador'))return;
-    S.scorers=S.scorers.filter(x=>x!==p);save();refresh();return;
+    S.scorers=S.scorers.filter(x=>x!==p);S.cardLog=CL().filter(c=>c.pid!==p.id);save();refresh();return;
   }
   save();refresh();
   const after=cardState(p);
