@@ -273,6 +273,9 @@ input:disabled{opacity:.45}
 .fx .seed{font:700 12px var(--cond);color:var(--marker);margin:0 4px}
 .fx .when{grid-column:1/-1;font-size:12.5px;color:var(--muted);margin:-2px 0 4px;text-align:center}
 .fx .when:empty{display:none}
+.fx .when button{font:inherit;color:var(--marker);background:none;border:none;padding:2px 6px;border-radius:4px;cursor:pointer;text-decoration:underline dotted}
+.fx .when button:hover{background:var(--mint)}
+body.ro .fx .when button{color:var(--muted);text-decoration:none;cursor:default;pointer-events:none}
 .calbox{margin-top:22px;background:var(--paper);border:1.5px solid var(--line);border-radius:10px;padding:16px;max-width:900px}
 .calbox[hidden]{display:none}
 .calbox h3{margin:0 0 4px;font:700 26px/1.15 var(--hand);color:var(--marker)}
@@ -723,7 +726,7 @@ footer{margin-top:48px;font-size:13px;color:var(--muted)}
     <h3 id="cTitle">Fecha del partido</h3>
     <p id="cWhat" style="margin:0 0 12px;color:var(--muted)"></p>
     <label class="fld" id="cTxtWrap"><span>Actividad</span><input id="cTxt" maxlength="80"></label>
-    <label class="fld"><span>Fecha (solo viernes)</span><input id="cDate" type="date"></label>
+    <label class="fld"><span>Fecha (los partidos son los viernes)</span><input id="cDate" type="date"></label>
     <div class="ugrid">
       <label class="fld"><span>Hora de inicio</span><input id="cIni" type="time" step="900"></label>
       <label class="fld"><span>Hora de fin</span><input id="cFin" type="time" step="900"></label>
@@ -1039,7 +1042,8 @@ function refresh(){
   $('#groups').classList.toggle('numbered',!!(S.drawn&&S.order));
   $$('.fx').forEach(f=>{const n=matchNo(f.dataset.g+f.dataset.k);f.querySelector('.pn').textContent=n?'P'+n:''});
   renderProgram(C);paintLock();
-  $$('.fx').forEach(f=>{f.querySelector('.when').textContent=calShort(f.dataset.g+f.dataset.k)});
+  $$('.fx').forEach(f=>{const k=f.dataset.g+f.dataset.k,t=calShort(k),w=f.querySelector('.when');
+    w.innerHTML=hasCal()?`<button type="button" data-calkey="${k}" title="Cambiar fecha y hora">📅 ${t?esc(t):'Asignar fecha'}</button>`:''});
   $$('.rest').forEach(r=>r.textContent='Descansa: '+nm(S.groups[r.dataset.g][+r.dataset.r]));
   const N=S.teams.length,z=LETTERS.map(L=>S.groups[L].length);
   $('#teamCount').textContent=`${N} equipos: Grupo A de ${z[0]}, B de ${z[1]} y C de ${z[2]}. Mínimo ${MIN_T}, máximo ${MAX_T}.`;
@@ -2225,7 +2229,7 @@ function renderCalendar(C){
     const hr=x.c&&x.c.hora?fmtH(x.c.hora)+(x.c.fin?' – '+fmtH(x.c.fin):''):'Sin hora';
     const who=x.kind==='e'?esc(x.label)+(!one&&x.c.cancha?' · '+esc(x.c.cancha):'')
       :`<span class="tag2">${esc(x.label)}${!one&&x.c&&x.c.cancha?' · '+esc(x.c.cancha):''}</span>`+(x.a!=null?'<b>'+esc(x.a)+'</b>':'<span class="ph">'+esc(x.pa||'')+'</span>')+'<span class="vs">vs</span>'+(x.b!=null?'<b>'+esc(x.b)+'</b>':'<span class="ph">'+esc(x.pb||'')+'</span>');
-    return `<div class="calrow ${x.kind==='e'?'ev':''} ${x.done?'done':''} ${x.key===nextKey?'next':''}"><span class="hr">${hr}</span><span class="what">${who}</span><span class="res">${x.res||(x.key===nextKey?'Sigue':'')}</span><button class="caledit" type="button" data-key="${x.key}">Editar</button></div>`;
+    return `<div class="calrow ${x.kind==='e'?'ev':''} ${x.done?'done':''} ${x.key===nextKey?'next':''}"><span class="hr">${hr}</span><span class="what">${who}</span><span class="res">${x.res||(x.key===nextKey?'Sigue':'')}</span><button class="caledit" type="button" data-key="${x.key}" aria-label="Cambiar fecha y hora: ${esc(x.kind==='e'?x.label:(x.a??x.pa??'')+' vs '+(x.b??x.pb??''))}">📅 Cambiar</button></div>`;
   };
   const warn=f=>isFriday(f)?'':'<span class="chip2">No es viernes</span>';
   $('#calList').innerHTML=order.map(f=>{const cs=[...new Set(days[f].map(x=>x.c.cancha).filter(Boolean))];
@@ -2236,14 +2240,16 @@ let calKey=null;
 const calLabel=key=>{const e=(S.events||[]).find(x=>x.id===key);if(e)return e.texto;const k=KO.find(x=>x.id===key);if(k)return k.label;
   const L=key[0],g=S.groups[L]&&gsched(L)[+key.slice(1)];return g?'Grupo '+L+': '+nm(S.groups[L][g.x])+' vs '+nm(S.groups[L][g.y]):key};
 function calGet(key){const e=(S.events||[]).find(x=>x.id===key);return e||(S.cal&&S.cal[key])||null}
-$('#calList').addEventListener('click',e=>{
-  const b=e.target.closest('.caledit');if(!b||RO)return;calKey=b.dataset.key;
+function openCal(key){
+  if(RO)return;calKey=key;
   const c=calGet(calKey)||{},isEv=(S.events||[]).some(x=>x.id===calKey);
-  $('#cTitle').textContent=isEv?'Actividad':'Fecha del partido';$('#cWhat').textContent=calLabel(calKey);
+  $('#cTitle').textContent=isEv?'Actividad':'Cambiar fecha y hora';$('#cWhat').textContent=calLabel(calKey);
   $('#cTxtWrap').hidden=!isEv;$('#cTxt').value=isEv?c.texto:'';
   $('#cDate').value=c.fecha||'';$('#cIni').value=c.hora||'';$('#cFin').value=c.fin||'';$('#cCan').value=c.cancha||OFFICIAL.cancha;
   $('#cClear').textContent=isEv?'Quitar actividad':'Quitar fecha';$('#cErr').textContent='';$('#calModal').hidden=false;$('#cDate').focus();
-});
+}
+$('#calList').addEventListener('click',e=>{const b=e.target.closest('.caledit');if(b)openCal(b.dataset.key)});
+$('#groups').addEventListener('click',e=>{const b=e.target.closest('[data-calkey]');if(b)openCal(b.dataset.calkey)});
 const closeCal=()=>{$('#calModal').hidden=true};
 $('#cCancel').addEventListener('click',closeCal);
 $('#calModal').addEventListener('click',e=>{if(e.target===$('#calModal'))closeCal()});
@@ -2253,19 +2259,27 @@ $('#cClear').addEventListener('click',()=>{
   if((S.events||[]).some(x=>x.id===calKey))S.events=S.events.filter(x=>x.id!==calKey);else if(S.cal)delete S.cal[calKey];
   closeCal();save();refresh();toast('Fecha quitada.');
 });
-$('#calForm').addEventListener('submit',e=>{
+$('#calForm').addEventListener('submit',async e=>{
   e.preventDefault();
   const f=$('#cDate').value,h=$('#cIni').value,fin=$('#cFin').value,can=$('#cCan').value.trim(),err=$('#cErr');
-  const isEv=(S.events||[]).some(x=>x.id===calKey);
+  const isEv=(S.events||[]).some(x=>x.id===calKey),key=calKey,old=calGet(key)?{...calGet(key)}:null;
   if(!f||!h){err.textContent='Escriba la fecha y la hora de inicio.';return}
-  if(!isFriday(f)){err.textContent='Los partidos solo se juegan los viernes. Elija un viernes.';$('#cDate').focus();return}
   const end=fin&&fin>h?fin:addHour(h);
+  const ask=async(t,x,y)=>{$('#calModal').hidden=true;const ok=await askConfirm(t,x,y);if(!ok){$('#calModal').hidden=false;calKey=key}return ok};
+  if(!isFriday(f)&&!await ask('Esa fecha no es viernes',fmtDay(f)+'. Los partidos del torneo se juegan los viernes. ¿Guardar esta fecha de todos modos?','Sí, guardar'))return;
   const clash=[...Object.entries(S.cal||{}),...(S.events||[]).map(x=>[x.id,x])]
-    .find(([k,c])=>k!==calKey&&c.fecha===f&&(c.cancha||'')===(can||'')&&c.hora<end&&(c.fin||addHour(c.hora))>h);
-  if(clash){err.textContent='Ese horario choca con '+calLabel(clash[0])+' en la misma cancha.';return}
-  if(isEv){const ev=S.events.find(x=>x.id===calKey);Object.assign(ev,{texto:$('#cTxt').value.trim()||ev.texto,fecha:f,hora:h,fin:end,cancha:can})}
-  else{S.cal=S.cal||{};S.cal[calKey]={fecha:f,hora:h,fin:end,cancha:can}}
-  closeCal();save();refresh();toast('Fecha guardada: '+fmtDay(f)+', '+fmtH(h)+'.');
+    .find(([k,c])=>k!==key&&c.fecha===f&&(c.cancha||'')===(can||'')&&c.hora<end&&(c.fin||addHour(c.hora))>h);
+  let swapped=null;
+  if(clash){
+    const [ck,cc]=clash,clashIsEv=(S.events||[]).some(x=>x.id===ck);
+    if(clashIsEv||isEv||!old||!old.fecha){err.textContent='Ese horario choca con '+calLabel(ck)+' en '+(can||'la misma cancha')+'. Elija otra hora o cambie primero ese partido.';return}
+    if(!await ask('Ese horario ya está ocupado',calLabel(ck)+' se juega '+fmtDay(cc.fecha)+' a las '+fmtH(cc.hora)+'. ¿Intercambiar los horarios? Ese partido pasaría a '+fmtDay(old.fecha)+' a las '+fmtH(old.hora)+'.','Intercambiar horarios'))return;
+    S.cal[ck]={fecha:old.fecha,hora:old.hora,fin:old.fin||addHour(old.hora),cancha:old.cancha||cc.cancha};swapped=ck;
+  }
+  if(isEv){const ev=S.events.find(x=>x.id===key);Object.assign(ev,{texto:$('#cTxt').value.trim()||ev.texto,fecha:f,hora:h,fin:end,cancha:can})}
+  else{S.cal=S.cal||{};S.cal[key]={fecha:f,hora:h,fin:end,cancha:can}}
+  closeCal();save();refresh();
+  toast(swapped?'Horarios intercambiados.':'Fecha guardada: '+fmtDay(f)+', '+fmtH(h)+'.');
 });
 
 if(maybeOfficial())saveLocal();
