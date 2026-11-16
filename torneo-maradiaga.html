@@ -273,6 +273,20 @@ input:disabled{opacity:.45}
 .fx .seed{font:700 12px var(--cond);color:var(--marker);margin:0 4px}
 .fx .when{grid-column:1/-1;font-size:12.5px;color:var(--muted);margin:-2px 0 4px;text-align:center}
 .fx .when:empty{display:none}
+.gchk{grid-column:1/-1;font-size:11.5px;text-align:center;margin:-3px 0 4px;color:var(--muted);opacity:.85;cursor:help}
+.gchk:empty{display:none}
+.gchk.bad::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--amber);margin-right:5px;vertical-align:1px}
+.match .gchk{text-align:left;padding:2px 10px 3px;margin:0}
+.gcheck{margin:0 0 12px;font-size:13.5px;color:var(--muted)}
+.gcheck summary{cursor:pointer;padding:4px 0;list-style:none}
+.gcheck summary::-webkit-details-marker{display:none}
+.gcheck summary::before{content:"▸ ";color:var(--muted)}
+.gcheck[open] summary::before{content:"▾ "}
+.gcheck .gbody{padding:6px 0 4px 14px;border-left:2px solid var(--line);margin-left:4px}
+.gcheck p{margin:4px 0}
+.gcheck ul{margin:0;padding-left:16px}.gcheck li{padding:2px 0}
+.gcheck .gnone{list-style:none;padding:0}.gcheck .gnone li{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:3px 0}
+.gcheck select{font:inherit;font-size:13px;color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:6px;padding:4px 8px;max-width:100%}
 .fx .when button{font:inherit;color:var(--marker);background:none;border:none;padding:2px 6px;border-radius:4px;cursor:pointer;text-decoration:underline dotted}
 .fx .when button:hover{background:var(--mint)}
 body.ro .fx .when button{color:var(--muted);text-decoration:none;cursor:default;pointer-events:none}
@@ -663,7 +677,8 @@ footer{margin-top:48px;font-size:13px;color:var(--muted)}
     <div class="awards">
       <article class="award" aria-labelledby="t-gol">
         <h3 id="t-gol">Mejor goleador</h3>
-        <p class="sub">Tabla de los jugadores que han anotado, según las planillas.</p>
+        <p class="sub">Tabla de los jugadores que han anotado, según las planillas. Cada gol se anota en su partido para que cuadre con el marcador.</p>
+        <details class="gcheck" id="goalCheck"></details>
         <div class="leader empty" id="golLeader"></div>
         <div class="tw"><table class="std" id="golTable">
           <thead><tr><th>#</th><th title="Número de camiseta">N.º</th><th class="tn">Jugador</th><th class="tn">Equipo</th><th>Goles</th></tr></thead>
@@ -711,6 +726,15 @@ footer{margin-top:48px;font-size:13px;color:var(--muted)}
   </div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 </main>
+<div class="modal" id="goalModal" hidden>
+  <form class="mbox" id="goalForm" role="dialog" aria-modal="true" aria-labelledby="gdTitle" novalidate>
+    <h3 id="gdTitle">⚽ Anotar gol</h3>
+    <p id="gdWho" style="margin:0 0 12px;font-weight:600"></p>
+    <label class="fld"><span>Partido</span><select id="gdMatch"></select></label>
+    <p id="gdInfo" style="margin:0 0 14px;color:var(--muted);font-size:14px"></p>
+    <div class="mact"><button class="btn ghost" id="gdCancel" type="button">Cancelar</button><button class="btn" type="submit">Anotar gol</button></div>
+  </form>
+</div>
 <div class="modal" id="cardModal" hidden>
   <form class="mbox" id="cardForm" role="dialog" aria-modal="true" aria-labelledby="cdTitle" novalidate>
     <h3 id="cdTitle">Tarjeta</h3>
@@ -864,6 +888,9 @@ function normalize(o){
         gm[L+k2]=base[k2].x===x?[r[0],r[1]]:[r[1],r[0]];});});
     o.gm=gm;delete o.perm;o.order=null;o.matchAt=null;
   }
+  if(!Array.isArray(o.goalLog)){ // versión anterior: solo había un total de goles por jugador; se pasan a goles sin partido
+    o.goalLog=[];o.scorers.forEach(p=>{for(let i=0;i<(+p.goals||0);i++)o.goalLog.push({id:p.id+'-g'+i,pid:p.id,match:null,at:''})});
+  }
   if(!Array.isArray(o.cardLog)){ // versión anterior: solo había conteos; se pasan a registros sin partido asignado
     o.cardLog=[];o.scorers.forEach(p=>{[['y',p.yc],['r',p.rc]].forEach(([k,n])=>{for(let i=0;i<(+n||0);i++)o.cardLog.push({id:p.id+'-'+k+i,pid:p.id,kind:k,match:null,paid:false,at:''})})});
   }
@@ -967,7 +994,7 @@ function buildGroups(){
       fx+=`<div class="jor"><h4>Jornada ${j+1}</h4>`;
       const busy=new Set();
       sc.map((m,k)=>[m,k]).sort((a,b)=>(matchNo(L+a[1])||0)-(matchNo(L+b[1])||0)).forEach(([m,k])=>{if(m.j!==j)return;busy.add(m.x);busy.add(m.y);
-        fx+=`<div class="fx" data-g="${L}" data-k="${k}"><span class="pn"></span><span class="fa"></span>${scoreInput('data-s="0"')}<span class="dash" aria-hidden="true">–</span>${scoreInput('data-s="1"')}<span class="fb"></span><span class="when"></span></div>`;});
+        fx+=`<div class="fx" data-g="${L}" data-k="${k}"><span class="pn"></span><span class="fa"></span>${scoreInput('data-s="0"')}<span class="dash" aria-hidden="true">–</span>${scoreInput('data-s="1"')}<span class="fb"></span><span class="when"></span><span class="gchk"></span></div>`;});
       if(n%2){const r=[...Array(n).keys()].find(p=>!busy.has(p));fx+=`<p class="rest" data-g="${L}" data-r="${r}"></p>`}
       fx+='</div>';
     }
@@ -989,7 +1016,7 @@ function buildGroups(){
 function buildBracket(){
   const mh=id=>{const k=KO.find(x=>x.id===id);
     return `<div class="match" data-m="${id}"><div class="mh"><span>${k.label}</span><span class="wait"></span></div>`+
-      ['a','b'].map(s=>`<div class="mr" data-side="${s}"><span class="tag"></span><span class="tn"></span>${scoreInput('data-f="'+s+'"')}<input class="sc pen" type="number" min="0" max="99" inputmode="numeric" placeholder="pen" data-f="p${s}"></div>`).join('')+'</div>';};
+      ['a','b'].map(s=>`<div class="mr" data-side="${s}"><span class="tag"></span><span class="tn"></span>${scoreInput('data-f="'+s+'"')}<input class="sc pen" type="number" min="0" max="99" inputmode="numeric" placeholder="pen" data-f="p${s}"></div>`).join('')+'<div class="gchk"></div></div>';};
   const br=$('#bracket');br.classList.toggle('s4',S.format==='s4');
   br.innerHTML=S.format==='s4'
    ?`<h3 class="rh">Semifinales</h3><h3 class="rh">Final</h3><h3 class="rh">Campeón</h3>
@@ -1023,6 +1050,7 @@ function buildBracket(){
 
 /* ---------- actualizar ---------- */
 function refresh(){
+  syncGoals();
   const C=compute();
   $$('main input, main textarea').forEach(e=>e.disabled=false);
   $$('.team').forEach((lab,i)=>{const b=lab.querySelector('.gb');
@@ -1041,7 +1069,7 @@ function refresh(){
   });
   $('#groups').classList.toggle('numbered',!!(S.drawn&&S.order));
   $$('.fx').forEach(f=>{const n=matchNo(f.dataset.g+f.dataset.k);f.querySelector('.pn').textContent=n?'P'+n:''});
-  renderProgram(C);paintLock();
+  renderProgram(C);paintLock();renderGoalCheck(C);
   $$('.fx').forEach(f=>{const k=f.dataset.g+f.dataset.k,t=calShort(k),w=f.querySelector('.when');
     w.innerHTML=hasCal()?`<button type="button" data-calkey="${k}" title="Cambiar fecha y hora">📅 ${t?esc(t):'Asignar fecha'}</button>`:''});
   $$('.rest').forEach(r=>r.textContent='Descansa: '+nm(S.groups[r.dataset.g][+r.dataset.r]));
@@ -1098,8 +1126,8 @@ function refresh(){
 }
 
 /* ---------- acciones ---------- */
-const hasResults=()=>Object.values(S.gm).some(r=>r&&(r[0]!=null||r[1]!=null))||Object.values(S.ko).some(r=>r&&Object.values(r).some(v=>v!=null))||S.scorers.some(p=>p.goals>0)||(Array.isArray(S.cardLog)&&S.cardLog.length>0);
-function clearResults(){S.gm={};S.ko={};S.cardLog=[];S.scorers.forEach(p=>{p.goals=0;p.yc=0;p.rc=0;p.ycBase=0;p.rcBase=0});$$('input.sc').forEach(i=>i.value='');}
+const hasResults=()=>Object.values(S.gm).some(r=>r&&(r[0]!=null||r[1]!=null))||Object.values(S.ko).some(r=>r&&Object.values(r).some(v=>v!=null))||(Array.isArray(S.goalLog)&&S.goalLog.length>0)||(Array.isArray(S.cardLog)&&S.cardLog.length>0);
+function clearResults(){S.gm={};S.ko={};S.cardLog=[];S.goalLog=[];S.scorers.forEach(p=>{p.goals=0;p.yc=0;p.rc=0;p.ycBase=0;p.rcBase=0});$$('input.sc').forEach(i=>i.value='');}
 
 /* ---------- premios individuales ---------- */
 function teamStats(C){
@@ -1131,7 +1159,7 @@ function renderAwards(C){
   // aviso: más goles de jugadores que goles del equipo
   const byTeam={};S.scorers.forEach(p=>byTeam[p.team]=(byTeam[p.team]||0)+p.goals);
   const bad=Object.keys(byTeam).filter(t=>byTeam[t]>st[t].gf);
-  const w=$('#golWarn');w.hidden=!bad.length;
+  const w=$('#golWarn');w.hidden=true;
   w.textContent=bad.length?'Revise: '+bad.map(t=>`${nm(+t)} tiene ${plural(byTeam[t],'gol','goles')} de jugadores, pero sus marcadores suman ${st[t].gf}.`).join(' '):'';
   // portero menos batido
   const ks=st.map((s,t)=>({t,...s,avg:s.pj?s.gc/s.pj:0})).filter(s=>s.pj>0)
@@ -1267,6 +1295,116 @@ $('#cardLog').addEventListener('click',async e=>{
   if(!(n>=0)){toast('Escriba un monto válido.');$('#'+id).value=S[id]||'';return}
   S[id]=n||0;save();refresh();
 }));
+
+/* ---------- goles por partido (cuadre con el marcador) ---------- */
+// Cada gol es un registro: jugador y partido. Los goles del jugador se cuentan desde aquí.
+const GL=()=>{if(!Array.isArray(S.goalLog))S.goalLog=[];return S.goalLog};
+function syncGoals(){const n={};GL().forEach(g=>{n[g.pid]=(n[g.pid]||0)+1});S.scorers.forEach(p=>{p.goals=n[p.id]||0})}
+// Marcador de un partido: [goles A, goles B] con sus equipos, o null si no tiene resultado
+function scoreOf(key,C){
+  const L=key[0];
+  if(LETTERS.includes(L)&&S.groups[L]&&/^[A-Z]\d+$/.test(key)){const g=gsched(L)[+key.slice(1)],r=S.gm[key];
+    if(!g||!r||r[0]==null||r[1]==null)return null;return{ta:S.groups[L][g.x],tb:S.groups[L][g.y],ga:r[0],gb:r[1]}}
+  const m=(C||compute()).M[key],r=S.ko[key]||{};
+  if(!m||m.a.t==null||m.b.t==null||r.a==null||r.b==null)return null;
+  return{ta:m.a.t,tb:m.b.t,ga:r.a,gb:r.b};
+}
+// Revisa un partido: cuántos goles de jugadores tiene cada equipo contra su marcador
+function goalCheck(key,C){
+  const s=scoreOf(key,C);if(!s)return null;
+  const cnt=t=>GL().filter(g=>g.match===key&&(pById(g.pid)||{}).team===t).length;
+  const pa=cnt(s.ta),pb=cnt(s.tb);
+  return{...s,pa,pb,ok:pa===s.ga&&pb===s.gb};
+}
+function checkText(c){
+  if(!c)return'';if(c.ok)return'✓ Goles de jugadores cuadran';
+  const part=(t,g,p)=>{const d=Math.abs(g-p);return p===g?'':(p<g?(d===1?'falta 1 gol':'faltan '+d+' goles'):(d===1?'sobra 1 gol':'sobran '+d+' goles'))+' de '+nm(t)};
+  return'⚠ '+[part(c.ta,c.ga,c.pa),part(c.tb,c.gb,c.pb)].filter(Boolean).join(' y ');
+}
+function checkShort(c){
+  if(!c)return'';if(c.ok)return'⚽ ✓';
+  return'⚽ registrados '+c.pa+'/'+c.ga+' · '+c.pb+'/'+c.gb;
+}
+// Ubica en su partido los goles que se anotaron antes sin partido: llena, en orden de fecha,
+// los partidos de su equipo que todavía tienen goles por registrar según el marcador.
+function autoAssignGoals(){
+  const pend=GL().filter(g=>!g.match&&pById(g.pid));if(!pend.length)return 0;
+  const C=compute(),ord=k=>{const c=S.cal&&S.cal[k];return (c&&c.fecha?c.fecha+(c.hora||''):'9999')+String(matchNo(k)||99).padStart(3,'0')+k};
+  const keys=allMatchKeys().filter(k=>scoreOf(k,C)).sort((a,b)=>ord(a).localeCompare(ord(b)));
+  let n=0;
+  keys.forEach(k=>{const s=scoreOf(k,C);
+    [[s.ta,s.ga],[s.tb,s.gb]].forEach(([t,goals])=>{
+      let have=GL().filter(g=>g.match===k&&(pById(g.pid)||{}).team===t).length;
+      for(const g of pend){if(have>=goals)break;if(g.match||(pById(g.pid)||{}).team!==t)continue;g.match=k;have++;n++}
+    });
+  });
+  return n;
+}
+function allMatchKeys(){const k=S.drawn?allKeys().map(m=>m.key):[];KO.forEach(x=>k.push(x.id));return k}
+let goalDraft=null;
+function openGoalDialog(p){
+  const C=compute(),list=matchesOfTeam(p.team),sel=$('#gdMatch');
+  const miss=x=>{const c=goalCheck(x.key,C);if(!c)return 0;return p.team===c.ta?c.ga-c.pa:c.gb-c.pb};
+  sel.innerHTML='<option value="">Sin partido asignado</option>'+list.map(x=>{const m=miss(x),s=scoreOf(x.key,C);
+    const sc=s?' · '+(p.team===s.ta?s.ga+'–'+s.gb:s.gb+'–'+s.ga):'';
+    return `<option value="${x.key}">${esc(x.label)}${x.when?' · '+esc(x.when):''}${sc}${m>0?(m===1?' · falta 1 gol':' · faltan '+m+' goles'):''}</option>`}).join('');
+  const pend=list.filter(x=>miss(x)>0);
+  sel.value=(pend.length?pend[pend.length-1].key:defaultMatch(list))||'';
+  $('#gdWho').textContent=(p.num!=null?p.num+' · ':'')+p.name+' ('+nm(p.team)+')';
+  $('#gdInfo').textContent='';goalDraft={p};$('#goalModal').hidden=false;sel.focus();paintGoalInfo();
+}
+function paintGoalInfo(){
+  if(!goalDraft)return;const k=$('#gdMatch').value,c=k?goalCheck(k):null,t=goalDraft.p.team;
+  $('#gdInfo').textContent=!k?'Sin partido, el gol no se puede cuadrar con ningún marcador.'
+    :!c?'Este partido todavía no tiene marcador anotado.'
+    :nm(t)+' anotó '+plural(t===c.ta?c.ga:c.gb,'gol','goles')+' en este partido y hay '+plural(t===c.ta?c.pa:c.pb,'gol registrado','goles registrados')+' de jugadores.';
+}
+$('#gdMatch').addEventListener('change',paintGoalInfo);
+const closeGoalDialog=()=>{$('#goalModal').hidden=true;const p=goalDraft&&goalDraft.p;goalDraft=null;
+  const b=p&&document.querySelector(`#rosterTable button[data-act="inc"][data-id="${p.id}"]`);if(b)b.focus()};
+$('#gdCancel').addEventListener('click',closeGoalDialog);
+$('#goalModal').addEventListener('click',e=>{if(e.target===$('#goalModal'))closeGoalDialog()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#goalModal').hidden)closeGoalDialog()});
+$('#goalForm').addEventListener('submit',async e=>{
+  e.preventDefault();if(!goalDraft)return;
+  const {p}=goalDraft,match=$('#gdMatch').value||null,c=match?goalCheck(match):null;
+  const over=c&&(p.team===c.ta?c.pa>=c.ga:c.pb>=c.gb);
+  if(over){$('#goalModal').hidden=true;
+    const ok=await askConfirm('Ese partido ya tiene todos sus goles',nm(p.team)+' anotó '+plural(p.team===c.ta?c.ga:c.gb,'gol','goles')+' según el marcador y ya están registrados. Si agrega este gol, sobrará uno. Revise el marcador o elija otro partido.','Agregar de todos modos');
+    if(!ok){$('#goalModal').hidden=false;return}}
+  GL().push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),pid:p.id,match,at:new Date().toISOString()});
+  $('#goalModal').hidden=true;goalDraft=null;save();refresh();
+  const c2=match?goalCheck(match):null;
+  toast('Gol de '+p.name+(match?' en '+matchLabel(match).split(' · ').slice(0,2).join(' · '):'')+'.'+(c2&&c2.ok?' Goles del partido completos.':''));
+  const b=document.querySelector(`#rosterTable button[data-act="inc"][data-id="${p.id}"]`);if(b)b.focus();
+});
+async function removeLastGoal(p){
+  const list=GL().filter(g=>g.pid===p.id);if(!list.length)return;const g=list[list.length-1];
+  if(!await askConfirm('¿Quitar el último gol de '+p.name+'?',matchLabel(g.match)+'.','Quitar gol'))return;
+  S.goalLog=GL().filter(x=>x!==g);save();refresh();toast('Gol quitado.');
+}
+function renderGoalCheck(C){
+  // marca discreta en cada partido de grupo y en cada llave
+  const paint=(el,c)=>{if(!el)return;el.textContent=checkShort(c);el.className='gchk'+(c?(c.ok?' ok':' bad'):'');el.title=c?checkText(c).replace('⚠ ','').replace('✓ ',''):''};
+  $$('.fx').forEach(f=>paint(f.querySelector('.gchk'),goalCheck(f.dataset.g+f.dataset.k,C)));
+  KO.forEach(k=>paint(document.querySelector(`.match[data-m="${k.id}"] .gchk`),goalCheck(k.id,C)));
+  // resumen plegado
+  const bad=allMatchKeys().map(k=>({k,c:goalCheck(k,C)})).filter(x=>x.c&&!x.c.ok);
+  const none=GL().filter(g=>!g.match&&pById(g.pid));
+  const played=allMatchKeys().filter(k=>scoreOf(k,C)).length;
+  const box=$('#goalCheck'),wasOpen=box.open;
+  const head=!played&&!none.length?'⚽ Cuadre de goles: aparece cuando haya marcadores'
+    :!bad.length&&!none.length?'⚽ Cuadre de goles: todo en orden'
+    :'⚽ Cuadre de goles: '+[bad.length?plural(bad.length,'partido con goles por registrar','partidos con goles por registrar'):'',none.length?plural(none.length,'gol sin partido','goles sin partido'):''].filter(Boolean).join(' · ');
+  const name=k=>esc(matchLabel(k).split(' · ').filter(s=>!/^(Vie|Lun|Mar|Mié|Jue|Sáb|Dom|\w{3}) \d/.test(s)).join(' · '));
+  box.innerHTML=`<summary>${head}</summary>`+((bad.length||none.length)?'<div class="gbody">'+
+    (bad.length?`<ul>${bad.map(x=>`<li>${name(x.k)} (${x.c.ga}–${x.c.gb}): ${esc(checkText(x.c).replace('⚠ ',''))}.</li>`).join('')}</ul>`:'')+
+    (none.length?`<p>Goles anotados sin partido:</p><ul class="gnone">${none.map(g=>{const p=pById(g.pid);
+      return `<li><span>${p.num!=null?esc(p.num)+' · ':''}${esc(p.name)} (${esc(nm(p.team))})</span>${RO?'':`<select data-assign="${g.id}" aria-label="Partido del gol de ${esc(p.name)}"><option value="">Elegir partido…</option>${matchesOfTeam(p.team).map(x=>`<option value="${x.key}">${esc(x.label)}${x.when?' · '+esc(x.when):''}</option>`).join('')}</select>`}</li>`}).join('')}</ul>`:'')+'</div>':'');
+  box.open=wasOpen&&(bad.length||none.length)>0;
+}
+$('#goalCheck').addEventListener('change',e=>{const s=e.target.closest('[data-assign]');if(!s||!s.value||RO)return;
+  const g=GL().find(x=>x.id===s.dataset.assign);if(!g)return;g.match=s.value;save();refresh();toast('Partido asignado.')});
 
 /* ---------- tarjetas ---------- */
 const cardLimit=()=>{const n=+S.cardLimit;return n>=1&&n<=10?Math.floor(n):3};
@@ -1581,14 +1719,14 @@ $('#clearNums').addEventListener('click',async()=>{
   const b=e.target.closest('button[data-act]');if(!b)return;
   const p=S.scorers.find(x=>x.id===b.dataset.id);if(!p)return;const act=b.dataset.act;
   const before=cardState(p);
-  if(act==='inc')p.goals++;
-  else if(act==='dec')p.goals=Math.max(0,p.goals-1);
+  if(act==='inc'){if(RO)return;openGoalDialog(p);return}
+  else if(act==='dec'){if(RO)return;await removeLastGoal(p);return}
   else if(act==='yc-inc'||act==='rc-inc'){if(RO)return;openCardDialog(p,act==='yc-inc'?'y':'r');return}
   else if(act==='yc-dec'||act==='rc-dec'){if(RO)return;await removeLastCard(p,act==='yc-dec'?'y':'r');return}
   else if(act==='del'){
     const extra=[p.goals?plural(p.goals,'gol','goles'):'',yc(p)?plural(yc(p),'amarilla','amarillas'):'',rc(p)?plural(rc(p),'roja','rojas'):''].filter(Boolean);
     if(!await askConfirm('¿Quitar a '+p.name+'?','Se borra de la planilla de '+nm(p.team)+(extra.length?' junto con sus '+extra.join(', '):'')+'.','Quitar jugador'))return;
-    S.scorers=S.scorers.filter(x=>x!==p);S.cardLog=CL().filter(c=>c.pid!==p.id);save();refresh();return;
+    S.scorers=S.scorers.filter(x=>x!==p);S.cardLog=CL().filter(c=>c.pid!==p.id);S.goalLog=GL().filter(g=>g.pid!==p.id);save();refresh();return;
   }
   save();refresh();
   const after=cardState(p);
@@ -1907,7 +2045,7 @@ function rebuildAll(){
 function applyRemote(r){
   const o=r.estado?normalize(JSON.parse(r.estado)):null;
   ver=r.version||0;lastInfo={actualizado:r.actualizado,por:r.por};
-  if(o){S=o;S.format='q8';KO=KO_Q8;maybeOfficial();saveLocal();rebuildAll()}
+  if(o){S=o;S.format='q8';KO=KO_Q8;maybeOfficial();if(autoAssignGoals())officialPending=true;saveLocal();rebuildAll()}
 }
 function sessionLost(msg){
   SES=null;ls.del(SES_KEY);connected=false;$('#usersModal').hidden=true;
@@ -2283,6 +2421,7 @@ $('#calForm').addEventListener('submit',async e=>{
 });
 
 if(maybeOfficial())saveLocal();
+if(autoAssignGoals())saveLocal();
 buildTeams();buildDraw();buildGroups();buildBracket();formatTexts();refresh();
 if(ONLINE){
   try{SES=JSON.parse(ls.get(SES_KEY)||'null')}catch(e){SES=null}
