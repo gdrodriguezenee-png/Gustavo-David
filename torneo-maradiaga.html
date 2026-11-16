@@ -715,7 +715,7 @@ footer{margin-top:48px;font-size:13px;color:var(--muted)}
       <div><h3>Tarjetas por partido</h3><p>Cada tarjeta queda registrada en el partido en que se recibió, con su estado de pago (pagada o sin pagar). Si un jugador recibe dos amarillas en el mismo partido, la página avisa.</p></div>
       <div><h3>Suspensiones</h3><p>Al llegar al límite de amarillas, o con una roja, el jugador debe cumplir suspensión. Cuando la cumpla, el administrador la marca como cumplida y su conteo vuelve a empezar.</p></div>
       <div><h3>Mejor goleador</h3><p>El jugador con más goles en todo el torneo. Los penales de una definición no cuentan.</p></div>
-      <div><h3>Portero menos batido</h3><p>Menor promedio de goles recibidos por partido. Si empatan, gana quien recibió menos goles y luego quien jugó más partidos.</p></div>
+      <div><h3>Portero menos batido</h3><p>Menor promedio de goles recibidos por partido (goles recibidos entre partidos jugados, en grupos y llaves; los penales de una definición no cuentan). Si empatan en promedio, gana quien jugó más partidos.</p></div>
     </div>
   </section>
 
@@ -1165,7 +1165,7 @@ function renderAwards(C){
   w.textContent=bad.length?'Revise: '+bad.map(t=>`${nm(+t)} tiene ${plural(byTeam[t],'gol','goles')} de jugadores, pero sus marcadores suman ${st[t].gf}.`).join(' '):'';
   // portero menos batido
   const ks=st.map((s,t)=>({t,...s,avg:s.pj?s.gc/s.pj:0})).filter(s=>s.pj>0)
-    .sort((a,b)=>a.avg-b.avg||a.gc-b.gc||b.pj-a.pj||nm(a.t).localeCompare(nm(b.t),'es'));
+    .sort((a,b)=>a.avg-b.avg||b.pj-a.pj||a.gc-b.gc||nm(a.t).localeCompare(nm(b.t),'es'));
   const kn=t=>(S.keepers[t]||'').trim();
   const pt=$('#porTable tbody');
   if(!ks.length){pt.innerHTML='<tr class="empty-row"><td colspan="6">Aparece cuando haya partidos anotados.</td></tr>'}
