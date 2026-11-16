@@ -282,6 +282,8 @@ input:disabled{opacity:.45}
 .gcheck summary::-webkit-details-marker{display:none}
 .gcheck summary::before{content:"▸ ";color:var(--muted)}
 .gcheck[open] summary::before{content:"▾ "}
+.gcheck.nodet summary{cursor:default}
+.gcheck.nodet summary::before{content:""}
 .gcheck .gbody{padding:6px 0 4px 14px;border-left:2px solid var(--line);margin-left:4px}
 .gcheck p{margin:4px 0}
 .gcheck ul{margin:0;padding-left:16px}.gcheck li{padding:2px 0}
@@ -1323,7 +1325,7 @@ function checkText(c){
 }
 function checkShort(c){
   if(!c)return'';if(c.ok)return'⚽ ✓';
-  return'⚽ registrados '+c.pa+'/'+c.ga+' · '+c.pb+'/'+c.gb;
+  return'⚽ '+checkText(c).replace('⚠ ','');
 }
 // Ubica en su partido los goles que se anotaron antes sin partido: llena, en orden de fecha,
 // los partidos de su equipo que todavía tienen goles por registrar según el marcador.
@@ -1393,15 +1395,18 @@ function renderGoalCheck(C){
   const none=GL().filter(g=>!g.match&&pById(g.pid));
   const played=allMatchKeys().filter(k=>scoreOf(k,C)).length;
   const box=$('#goalCheck'),wasOpen=box.open;
+  const one=bad.length===1&&!none.length?bad[0]:null;
   const head=!played&&!none.length?'⚽ Cuadre de goles: aparece cuando haya marcadores'
     :!bad.length&&!none.length?'⚽ Cuadre de goles: todo en orden'
+    :one?'⚽ Cuadre de goles: '+checkText(one.c).replace('⚠ ','')+' en '+matchLabel(one.k)+' ('+one.c.ga+'–'+one.c.gb+')'
     :'⚽ Cuadre de goles: '+[bad.length?plural(bad.length,'partido con goles por registrar','partidos con goles por registrar'):'',none.length?plural(none.length,'gol sin partido','goles sin partido'):''].filter(Boolean).join(' · ');
-  const name=k=>esc(matchLabel(k).split(' · ').filter(s=>!/^(Vie|Lun|Mar|Mié|Jue|Sáb|Dom|\w{3}) \d/.test(s)).join(' · '));
-  box.innerHTML=`<summary>${head}</summary>`+((bad.length||none.length)?'<div class="gbody">'+
-    (bad.length?`<ul>${bad.map(x=>`<li>${name(x.k)} (${x.c.ga}–${x.c.gb}): ${esc(checkText(x.c).replace('⚠ ',''))}.</li>`).join('')}</ul>`:'')+
+  const name=k=>esc(matchLabel(k));
+  box.innerHTML=`<summary>${esc(head)}</summary>`+(((bad.length&&!one)||none.length)?'<div class="gbody">'+
+    (bad.length&&!one?`<ul>${bad.map(x=>`<li><b>${esc(checkText(x.c).replace('⚠ ',''))}</b> en ${name(x.k)} (${x.c.ga}–${x.c.gb})</li>`).join('')}</ul>`:'')+
     (none.length?`<p>Goles anotados sin partido:</p><ul class="gnone">${none.map(g=>{const p=pById(g.pid);
       return `<li><span>${p.num!=null?esc(p.num)+' · ':''}${esc(p.name)} (${esc(nm(p.team))})</span>${RO?'':`<select data-assign="${g.id}" aria-label="Partido del gol de ${esc(p.name)}"><option value="">Elegir partido…</option>${matchesOfTeam(p.team).map(x=>`<option value="${x.key}">${esc(x.label)}${x.when?' · '+esc(x.when):''}</option>`).join('')}</select>`}</li>`}).join('')}</ul>`:'')+'</div>':'');
-  box.open=wasOpen&&(bad.length||none.length)>0;
+  box.open=wasOpen&&((bad.length&&!one)||none.length)>0;
+  box.classList.toggle('nodet',!((bad.length&&!one)||none.length));
 }
 $('#goalCheck').addEventListener('change',e=>{const s=e.target.closest('[data-assign]');if(!s||!s.value||RO)return;
   const g=GL().find(x=>x.id===s.dataset.assign);if(!g)return;g.match=s.value;save();refresh();toast('Partido asignado.')});
