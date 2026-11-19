@@ -96,6 +96,8 @@ body.ro .limitrow label,body.ro .limitrow>span:not(#cardLimitTxt){display:none}
 .clfilters select{font:inherit;font-size:14px;color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:6px;padding:7px 9px;max-width:100%}
 #clSummary{font-size:14px;color:var(--muted)}
 #cardLog td small{display:block;font-size:11.5px;color:var(--muted)}
+.cmatch{font:inherit;font-size:13.5px;color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:6px;padding:5px 8px;width:100%;max-width:340px}
+.cmatch.none{border-style:dashed;border-color:var(--amber);color:var(--amber)}
 #cardLog tr.unpaid td:first-child{box-shadow:inset 3px 0 0 var(--danger)}
 .paytog{display:inline-flex;align-items:center;gap:6px;font-size:13.5px;cursor:pointer;white-space:nowrap}
 .paytog input{width:18px;height:18px;accent-color:var(--marker)}
@@ -660,7 +662,7 @@ footer{margin-top:48px;font-size:13px;color:var(--muted)}
     </div>
     <article class="award cllog" aria-labelledby="t-tl">
       <h3 id="t-tl">Tarjetas por partido</h3>
-      <p class="sub">Cada tarjeta con su partido y su estado de pago. Marque la casilla cuando se pague la multa.</p>
+      <p class="sub">Cada tarjeta con su partido y su estado de pago. Para cambiar el partido de una tarjeta, elíjalo en la lista de la columna Partido. Marque la casilla cuando se pague la multa.</p>
       <div class="clfilters">
         <select id="clMatch" aria-label="Filtrar por partido"><option value="*">Todos los partidos</option></select>
         <select id="clPaid" aria-label="Filtrar por pago"><option value="*">Pagadas y sin pagar</option><option value="no">Solo sin pagar</option><option value="si">Solo pagadas</option></select>
@@ -742,6 +744,7 @@ footer{margin-top:48px;font-size:13px;color:var(--muted)}
     <h3 id="cdTitle">Tarjeta</h3>
     <p id="cdWho" style="margin:0 0 12px;font-weight:600"></p>
     <label class="fld"><span>Partido</span><select id="cdMatch"></select></label>
+    <label class="chk" id="cdReuseWrap" hidden><input type="checkbox" id="cdReuse" checked> <span id="cdReuseTxt"></span></label>
     <label class="chk"><input type="checkbox" id="cdPaid"> Ya se pagó la multa <span id="cdFine" style="color:var(--muted);margin-left:6px"></span></label>
     <p class="lgerr" id="cdErr" role="alert"></p>
     <div class="mact"><button class="btn ghost" id="cdCancel" type="button">Cancelar</button><button class="btn" type="submit">Anotar tarjeta</button></div>
@@ -1230,6 +1233,12 @@ function openCardDialog(p,kind){
   $('#cdTitle').innerHTML=`<span class="card-${kind}" aria-hidden="true"></span>Tarjeta ${kind==='y'?'amarilla':'roja'}`;
   $('#cdWho').textContent=(p.num!=null?p.num+' · ':'')+p.name+' ('+nm(p.team)+')';
   $('#cdPaid').checked=false;$('#cdFine').textContent=money(kind==='y'?S.fineY:S.fineR)?'Multa: '+money(kind==='y'?S.fineY:S.fineR):'';
+  const old=CL().filter(c=>c.pid===p.id&&c.kind===kind&&!c.match);
+  $('#cdReuseWrap').hidden=!old.length;$('#cdReuse').checked=!!old.length;
+  if(old.length){const pd=old.filter(c=>c.paid).length;
+    $('#cdReuseTxt').textContent='Es una tarjeta que ya estaba anotada sin partido'+(old.length>1?' (tiene '+old.length+')':'')+': solo asignarle el partido y conservar su pago'+(pd?' (pagada)':'');}
+  const syncPaid=()=>{if($('#cdReuse').checked&&old.length){const c=old.find(x=>x.paid)||old[0];$('#cdPaid').checked=!!c.paid}else $('#cdPaid').checked=false};
+  $('#cdReuse').onchange=syncPaid;syncPaid();
   $('#cdErr').textContent='';cardDraft={p,kind};$('#cardModal').hidden=false;sel.focus();
 }
 const closeCardDialog=()=>{$('#cardModal').hidden=true;const p=cardDraft&&cardDraft.p;cardDraft=null;
@@ -1241,6 +1250,13 @@ $('#cardForm').addEventListener('submit',e=>{
   e.preventDefault();if(!cardDraft)return;
   const {p,kind}=cardDraft,match=$('#cdMatch').value||null,before=cardState(p);
   const sameY=kind==='y'&&match?CL().filter(c=>c.pid===p.id&&c.kind==='y'&&c.match===match).length:0;
+  const old=CL().filter(c=>c.pid===p.id&&c.kind===kind&&!c.match);
+  if(!$('#cdReuseWrap').hidden&&$('#cdReuse').checked&&old.length&&match){
+    // tarjeta ya anotada sin partido: solo se le pone el partido; el pago se respeta
+    const c=old.find(x=>x.paid===$('#cdPaid').checked)||old[0];c.match=match;c.paid=$('#cdPaid').checked||c.paid;
+    $('#cardModal').hidden=true;cardDraft=null;save();refresh();
+    toast('Partido asignado a la tarjeta de '+p.name+(c.paid?'. Sigue pagada.':'.'));return;
+  }
   CL().push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),pid:p.id,kind,match,paid:$('#cdPaid').checked,at:new Date().toISOString()});
   $('#cardModal').hidden=true;cardDraft=null;save();refresh();
   const after=cardState(p);
@@ -1274,7 +1290,7 @@ function renderCardLog(){
   $('#clSummary').innerHTML=log.length?`<b>${plural(log.length,'tarjeta','tarjetas')}</b> en total · <b style="color:var(--danger)">${plural(pend.length,'sin pagar','sin pagar')}</b>${pendMoney?' ('+money(pendMoney)+')':''} · ${plural(log.length-pend.length,'pagada','pagadas')}`:'';
   show.sort((a,b)=>ord(a.match||'').localeCompare(ord(b.match||''))||String(a.at).localeCompare(String(b.at)));
   $('#cardLog tbody').innerHTML=show.length?show.map(c=>{const p=pById(c.pid);
-    return `<tr class="${c.paid?'':'unpaid'}"><td class="tn">${esc(matchLabel(c.match))}</td><td class="tn">${p.num!=null?esc(p.num)+' · ':''}${esc(p.name)}</td><td class="tn">${esc(nm(p.team))}</td><td><span class="card-${c.kind}" aria-label="${c.kind==='y'?'Amarilla':'Roja'}"></span>${fineOf(c)?'<small>'+money(fineOf(c))+'</small>':''}</td>
+    return `<tr class="${c.paid?'':'unpaid'}"><td class="tn">${RO?esc(matchLabel(c.match)):`<select class="cmatch${c.match?'':' none'}" data-cmatch="${c.id}" aria-label="Partido de la tarjeta de ${esc(p.name)}"><option value="">Sin partido asignado</option>${matchesOfTeam(p.team).map(x=>`<option value="${x.key}"${x.key===c.match?' selected':''}>${esc(x.label)}${x.when?' · '+esc(x.when):''}</option>`).join('')}</select>`}</td><td class="tn">${p.num!=null?esc(p.num)+' · ':''}${esc(p.name)}</td><td class="tn">${esc(nm(p.team))}</td><td><span class="card-${c.kind}" aria-label="${c.kind==='y'?'Amarilla':'Roja'}"></span>${fineOf(c)?'<small>'+money(fineOf(c))+'</small>':''}</td>
       <td>${RO?(c.paid?'<span class="paid">Pagada</span>':'<span class="nopaid">Sin pagar</span>'):`<label class="paytog"><input type="checkbox" data-pay="${c.id}" ${c.paid?'checked':''}> ${c.paid?'Pagada':'Sin pagar'}</label>`}</td>
       <td>${RO?'':`<button class="del" type="button" data-rmcard="${c.id}" aria-label="Quitar esta tarjeta">×</button>`}</td></tr>`}).join('')
     :`<tr class="empty-row"><td colspan="6">${log.length?'No hay tarjetas con ese filtro.':'Todavía no hay tarjetas. Anótelas en la planilla de cada equipo con el botón +.'}</td></tr>`;
@@ -1283,6 +1299,9 @@ function renderCardLog(){
 $('#clMatch').addEventListener('change',renderCardLog);
 $('#clPaid').addEventListener('change',renderCardLog);
 $('#cardLog').addEventListener('change',e=>{
+  const sm=e.target.closest('[data-cmatch]');
+  if(sm&&!RO){const c=CL().find(x=>x.id===sm.dataset.cmatch);if(!c)return;c.match=sm.value||null;save();refresh();
+    toast(c.match?'Partido asignado: '+matchLabel(c.match).split(' · ').slice(0,2).join(' · ')+'.':'La tarjeta quedó sin partido.');return}
   const i=e.target.closest('[data-pay]');if(!i||RO)return;const c=CL().find(x=>x.id===i.dataset.pay);if(!c)return;
   c.paid=i.checked;c.paidAt=c.paid?new Date().toISOString():null;save();refresh();
   toast(c.paid?'Tarjeta pagada: ya no aparece en la planilla del equipo.':'Tarjeta marcada como sin pagar: vuelve a aparecer en la planilla.');
