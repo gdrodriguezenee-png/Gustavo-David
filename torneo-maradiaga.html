@@ -402,6 +402,14 @@ body[data-view="gate"] main,body[data-view="gate"] .sesbar{display:none}
 .tact button{font:600 13px var(--sans);padding:5px 9px;border-radius:6px;border:1.5px solid var(--line);background:var(--paper);color:var(--ink);cursor:pointer;margin-left:4px}
 .tact button.danger{color:var(--danger)}
 .off td{color:var(--muted)}
+.pausebox{border:1.5px solid var(--line);border-radius:8px;padding:12px 14px;margin:12px 0 0}
+.pausebox.on{background:var(--amber-bg);border-color:var(--amber)}
+.pausebox h4{margin:0 0 4px;font:600 16px var(--sans)}
+.pausebox p{margin:0 0 8px;font-size:14px;color:var(--muted)}
+.pausebox .prow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.pausebox input{flex:1;min-width:200px;font:inherit;font-size:14px;color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:6px;padding:7px 10px}
+.tact button.warn{color:var(--amber)}
+.sesbar .paused{font:700 12px var(--cond);color:#1b1300;background:var(--amber);border-radius:999px;padding:2px 9px}
 .pwrap{display:flex;gap:6px}
 .gbox .pbtn{min-width:78px;font-size:14px}
 .pwrap input{flex:1;min-width:0}
@@ -520,6 +528,7 @@ footer{margin-top:48px;font-size:13px;color:var(--muted)}
 <div class="sesbar" id="sesbar" hidden>
   <div class="sesin">
     <span class="sync" id="sync" data-s="" aria-live="polite"><span class="dot" aria-hidden="true"></span><span id="syncTxt">Conectando…</span></span>
+    <span class="paused" id="pzBadge" hidden>Acceso de usuarios pausado</span>
     <span class="who" id="who"></span>
     <button class="btn ghost sm" id="usersBtn" type="button" hidden>Usuarios</button>
     <button class="btn ghost sm" id="logoutBtn" type="button">Cerrar sesión</button>
@@ -785,6 +794,11 @@ footer{margin-top:48px;font-size:13px;color:var(--muted)}
   <div class="mbox wide" role="dialog" aria-modal="true" aria-labelledby="uTitle">
     <div class="uhead"><h3 id="uTitle">Usuarios</h3><button class="del" id="uClose" type="button" aria-label="Cerrar">×</button></div>
     <p class="sub" style="margin:0;color:var(--muted)"><b style="color:var(--ink)">Administrador:</b> anota resultados, edita el torneo y maneja usuarios. <b style="color:var(--ink)">Usuario:</b> solo ve los resultados.</p>
+    <div class="pausebox" id="pauseBox">
+      <h4 id="pzTitle">Acceso de los usuarios</h4>
+      <p id="pzTxt">Puede pausar el acceso de todos los usuarios hasta que usted decida. Los administradores siguen entrando.</p>
+      <div class="prow"><input id="pzMsg" maxlength="200" placeholder="Mensaje para los usuarios (opcional), por ejemplo: estamos actualizando resultados"><button class="btn sm" id="pzBtn" type="button">⏸ Pausar acceso</button></div>
+    </div>
     <div class="udone" id="uDone" hidden role="status">
       <p id="uDoneTxt"></p>
       <dl><dt>Usuario</dt><dd id="uDoneUser"></dd><dt>Contraseña</dt><dd id="uDonePass"></dd></dl>
@@ -2114,11 +2128,12 @@ async function enterApp(){
   $('#foot').textContent='Los datos se guardan en Google Sheets. Solo los administradores pueden modificarlos.';
   try{
     const d=await apiRead();
-    if(!d.ok){if(d.error==='sesion'){sessionLost();return}throw new Error(d.error)}
+    if(!d.ok){if(d.error==='sesion'){sessionLost();return}if(d.error==='pausado'){sessionLost(d.mensaje);return}throw new Error(d.error)}
     connected=true;
     if(d.estado)applyRemote(d);else{ver=d.version||0;lastInfo=null}
     paintSession();
     if(isAdmin()&&(!d.estado||dirty)){dirty=true;pushSave()}
+    if(isAdmin())apiPost({accion:'usuarios',token:SES.token}).then(r=>{if(r&&r.ok&&r.pausa)paintPause(r.pausa)}).catch(()=>{});
   }catch(e){connected=false;paintSession();setTimeout(()=>{if(SES&&!connected)enterApp()},15000)}
 }
 async function poll(){
@@ -2126,7 +2141,7 @@ async function poll(){
   const a=document.activeElement;if(a&&a.closest&&a.closest('main')&&/INPUT|TEXTAREA|SELECT/.test(a.tagName))return;
   try{
     const d=await apiRead();
-    if(!d.ok){if(d.error==='sesion')sessionLost();return}
+    if(!d.ok){if(d.error==='sesion')sessionLost('Su sesión terminó. Si el administrador lo suspendió, no podrá entrar hasta que lo reactive.');else if(d.error==='pausado')sessionLost(d.mensaje);return}
     if(d.version!==ver&&!dirty&&!saving){applyRemote(d);paintSession()}
   }catch(e){}
 }
@@ -2173,7 +2188,8 @@ $('#regForm').addEventListener('submit',async e=>{
     if(r.ok){
       SES={token:r.token,nombre:r.nombre,usuario:r.usuario,rol:r.rol};ls.set(SES_KEY,JSON.stringify(SES));
       $('#regForm').reset();await enterApp();toast('Cuenta creada. Bienvenido, '+r.nombre+'.');
-    }else if(r.error==='accion')err.textContent='El servidor todavía no permite crear cuentas. El administrador debe publicar la versión nueva del Apps Script.';
+    }else if(r.error==='pausado')err.textContent=r.mensaje;
+    else if(r.error==='accion')err.textContent='El servidor todavía no permite crear cuentas. El administrador debe publicar la versión nueva del Apps Script.';
     else err.textContent=r.mensaje||'No se pudo crear la cuenta. Intente de nuevo.';
   }catch(ex){err.textContent='No hay conexión con Google Sheets. Revise el internet e intente de nuevo.'}
   go.disabled=false;go.textContent='Crear cuenta y entrar';
@@ -2190,7 +2206,7 @@ $('#loginForm').addEventListener('submit',async e=>{
       SES={token:r.token,nombre:r.nombre,usuario:r.usuario,rol:r.rol};ls.set(SES_KEY,JSON.stringify(SES));
       await enterApp();
       toast('Bienvenido, '+r.nombre+'.'+(r.rol==='admin'?' Los cambios se guardan solos.':' Puede ver los resultados.'));
-    }else err.textContent=r.error==='credenciales'?'Usuario o contraseña incorrectos, o el usuario está desactivado.':'No se pudo iniciar sesión. Intente de nuevo.';
+    }else err.textContent=r.error==='pausado'?r.mensaje:r.error==='credenciales'?'Usuario o contraseña incorrectos, o el usuario está suspendido.':'No se pudo iniciar sesión. Intente de nuevo.';
   }catch(ex){err.textContent='No hay conexión con Google Sheets. Revise el internet e intente de nuevo.'}
   go.disabled=false;go.textContent='Entrar';
 });
@@ -2209,8 +2225,8 @@ function paintUserCount(){
   if(!editing){$('#uSave').disabled=full;$$('#uForm input, #uForm select').forEach(e=>e.disabled=full)}
 }
 function renderUsers(){
-  $('#uTable tbody').innerHTML=USERS.length?USERS.map(u=>`<tr class="${u.activo?'':'off'}"><td class="tn">${esc(u.usuario)}</td><td class="tn">${esc(u.nombre)}</td><td>${u.rol==='admin'?'Administrador':'Usuario'}</td><td>${u.activo?'Activo':'Inactivo'}</td>
-    <td class="tact"><button type="button" data-u="${esc(u.usuario)}" data-a="edit">Editar</button>${SES&&u.usuario.toLowerCase()===SES.usuario.toLowerCase()?'':`<button type="button" class="danger" data-u="${esc(u.usuario)}" data-a="del">Eliminar</button>`}</td></tr>`).join('')
+  $('#uTable tbody').innerHTML=USERS.length?USERS.map(u=>`<tr class="${u.activo?'':'off'}"><td class="tn">${esc(u.usuario)}</td><td class="tn">${esc(u.nombre)}</td><td>${u.rol==='admin'?'Administrador':'Usuario'}</td><td>${u.activo?'Activo':'Suspendido'}</td>
+    <td class="tact"><button type="button" data-u="${esc(u.usuario)}" data-a="edit">Editar</button>${SES&&u.usuario.toLowerCase()===SES.usuario.toLowerCase()?'':`<button type="button" class="${u.activo?'warn':''}" data-u="${esc(u.usuario)}" data-a="toggle">${u.activo?'Suspender':'Reactivar'}</button><button type="button" class="danger" data-u="${esc(u.usuario)}" data-a="del">Eliminar</button>`}</td></tr>`).join('')
     :'<tr class="empty-row"><td colspan="5">Cargando usuarios…</td></tr>';
 }
 function resetUserForm(){
@@ -2219,8 +2235,32 @@ function resetUserForm(){
   $('#uPassLbl').textContent='Contraseña';$('#uErr').textContent='';setEye(true);
   $$('#uForm input, #uForm select').forEach(e=>e.disabled=false);$('#uSave').disabled=false;paintUserCount();
 }
+let PAUSA={};
+function paintPause(pz){
+  PAUSA=pz||{};const on=!!PAUSA.activa;
+  $('#pauseBox').classList.toggle('on',on);
+  $('#pzTitle').textContent=on?'⏸ Acceso de los usuarios pausado':'Acceso de los usuarios';
+  $('#pzTxt').textContent=on?'Desde '+(PAUSA.desde||'')+(PAUSA.por?', por '+PAUSA.por:'')+'. Los usuarios no pueden entrar ni ver el torneo hasta que usted reanude el acceso. Los administradores siguen entrando.'
+    :'Puede pausar el acceso de todos los usuarios hasta que usted decida. Los administradores siguen entrando.';
+  $('#pzMsg').hidden=on;if(!on)$('#pzMsg').value='';
+  $('#pzBtn').textContent=on?'▶ Reanudar acceso':'⏸ Pausar acceso';$('#pzBtn').className='btn sm'+(on?'':' ghost');
+  $('#pzBadge').hidden=!on;
+}
+$('#pzBtn').addEventListener('click',async()=>{
+  const on=!PAUSA.activa;
+  $('#usersModal').hidden=true;
+  const ok=await askConfirm(on?'¿Pausar el acceso de los usuarios?':'¿Reanudar el acceso?',
+    on?'Los usuarios que están viendo el torneo saldrán y no podrán entrar hasta que usted reanude el acceso. Los administradores siguen entrando.':'Los usuarios activos podrán volver a entrar.',
+    on?'Pausar acceso':'Reanudar acceso');
+  $('#usersModal').hidden=false;if(!ok)return;
+  try{const r=await apiPost({accion:'pausa',token:SES.token,activa:on,mensaje:$('#pzMsg').value});
+    if(r.ok){paintPause(r.pausa);toast(on?'Acceso de usuarios pausado.':'Acceso de usuarios reanudado.')}
+    else if(r.error==='accion')$('#uErr').textContent='Falta publicar la versión nueva del Apps Script para usar esta opción.';
+    else userResult(r)}
+  catch(e){$('#uErr').textContent='No hay conexión. Intente de nuevo.'}
+});
 function userResult(r){
-  if(r.ok){USERS=r.usuarios;if(r.max)MAXU=r.max;renderUsers();paintUserCount();return true}
+  if(r.ok){USERS=r.usuarios;if(r.max)MAXU=r.max;if(r.pausa)paintPause(r.pausa);renderUsers();paintUserCount();return true}
   if(r.error==='sesion'){sessionLost();return false}
   if(r.error==='permiso'){$('#usersModal').hidden=true;SES.rol='usuario';ls.set(SES_KEY,JSON.stringify(SES));paintSession();toast('Su usuario ya no es administrador.');return false}
   $('#uErr').textContent=r.mensaje||'No se pudo completar. Intente de nuevo.';return false;
@@ -2269,6 +2309,16 @@ $('#uForm').addEventListener('submit',async e=>{
 $('#uTable').addEventListener('click',async e=>{
   const b=e.target.closest('button[data-a]');if(!b)return;
   const u=USERS.find(x=>x.usuario===b.dataset.u);if(!u)return;
+  if(b.dataset.a==='toggle'){
+    const susp=u.activo;$('#usersModal').hidden=true;
+    const ok=await askConfirm(susp?'¿Suspender a '+u.nombre+'?':'¿Reactivar a '+u.nombre+'?',
+      susp?'No podrá entrar hasta que usted lo reactive. Si está dentro ahora, saldrá en menos de un minuto. Su cuenta y su contraseña se conservan.':'Podrá volver a entrar con su usuario y contraseña de siempre.',
+      susp?'Suspender':'Reactivar');
+    $('#usersModal').hidden=false;if(!ok)return;
+    try{if(userResult(await apiPost({accion:'guardarUsuario',token:SES.token,nuevo:false,usuario:u.usuario,nombre:u.nombre,clave:'',rol:u.rol,activo:!susp})))toast(susp?u.nombre+' quedó suspendido.':u.nombre+' puede volver a entrar.')}
+    catch(ex){$('#uErr').textContent='No hay conexión. Intente de nuevo.'}
+    return;
+  }
   if(b.dataset.a==='edit'){
     editing=u.usuario;$$('#uForm input, #uForm select').forEach(e=>e.disabled=false);$('#uSave').disabled=false;$('#uFormTitle').textContent='Editar a '+u.usuario;$('#uSave').textContent='Guardar cambios';$('#uCancel').hidden=false;
     $('#uUser').value=u.usuario;$('#uUser').disabled=true;$('#uName').value=u.nombre;$('#uPass').value='';$('#uRol').value=u.rol;$('#uAct').checked=u.activo;
