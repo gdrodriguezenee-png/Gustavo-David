@@ -96,6 +96,10 @@ body.ro .limitrow label,body.ro .limitrow>span:not(#cardLimitTxt){display:none}
 .clfilters select{font:inherit;font-size:14px;color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:6px;padding:7px 9px;max-width:100%}
 #clSummary{font-size:14px;color:var(--muted)}
 #cardLog td small{display:block;font-size:11.5px;color:var(--muted)}
+.qty{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.qty input{width:70px;text-align:center;font:700 20px var(--cond);padding:6px;color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:6px}
+.qty .step{width:38px;height:38px;font-size:20px}
+.qty .fill{color:var(--marker);font-size:13.5px}
 .cmatch{font:inherit;font-size:13.5px;color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:6px;padding:5px 8px;width:100%;max-width:340px}
 .cmatch.none{border-style:dashed;border-color:var(--amber);color:var(--amber)}
 #cardLog tr.unpaid td:first-child{box-shadow:inset 3px 0 0 var(--danger)}
@@ -735,8 +739,10 @@ footer{margin-top:48px;font-size:13px;color:var(--muted)}
     <h3 id="gdTitle">⚽ Anotar gol</h3>
     <p id="gdWho" style="margin:0 0 12px;font-weight:600"></p>
     <label class="fld"><span>Partido</span><select id="gdMatch"></select></label>
+    <div class="fld"><label for="gdQty"><span>Cantidad de goles</span></label>
+      <div class="qty"><button class="step" type="button" id="gdMinus" aria-label="Un gol menos">−</button><input id="gdQty" type="number" min="1" max="30" value="1" inputmode="numeric"><button class="step" type="button" id="gdPlus" aria-label="Un gol más">+</button><button class="linkish fill" type="button" id="gdFill" hidden></button></div></div>
     <p id="gdInfo" style="margin:0 0 14px;color:var(--muted);font-size:14px"></p>
-    <div class="mact"><button class="btn ghost" id="gdCancel" type="button">Cancelar</button><button class="btn" type="submit">Anotar gol</button></div>
+    <div class="mact"><button class="btn ghost" id="gdCancel" type="button">Cancelar</button><button class="btn" type="submit" id="gdGo">Anotar gol</button></div>
   </form>
 </div>
 <div class="modal" id="cardModal" hidden>
@@ -1372,14 +1378,22 @@ function openGoalDialog(p){
   const pend=list.filter(x=>miss(x)>0);
   sel.value=(pend.length?pend[pend.length-1].key:defaultMatch(list))||'';
   $('#gdWho').textContent=(p.num!=null?p.num+' · ':'')+p.name+' ('+nm(p.team)+')';
-  $('#gdInfo').textContent='';goalDraft={p};$('#goalModal').hidden=false;sel.focus();paintGoalInfo();
+  $('#gdInfo').textContent='';$('#gdQty').value=1;$('#gdGo').textContent='Anotar gol';goalDraft={p};$('#goalModal').hidden=false;sel.focus();paintGoalInfo();
 }
 function paintGoalInfo(){
   if(!goalDraft)return;const k=$('#gdMatch').value,c=k?goalCheck(k):null,t=goalDraft.p.team;
   $('#gdInfo').textContent=!k?'Sin partido, el gol no se puede cuadrar con ningún marcador.'
     :!c?'Este partido todavía no tiene marcador anotado.'
     :nm(t)+' anotó '+plural(t===c.ta?c.ga:c.gb,'gol','goles')+' en este partido y hay '+plural(t===c.ta?c.pa:c.pb,'gol registrado','goles registrados')+' de jugadores.';
+  const miss=c?Math.max(0,(t===c.ta?c.ga-c.pa:c.gb-c.pb)):0,f=$('#gdFill');
+  f.hidden=miss<2;f.textContent='Poner los '+miss+' que faltan';f.dataset.n=miss;
 }
+const gqty=()=>{const n=Math.floor(+$('#gdQty').value);return n>=1?Math.min(30,n):1};
+$('#gdMinus').addEventListener('click',()=>{$('#gdQty').value=Math.max(1,gqty()-1)});
+$('#gdPlus').addEventListener('click',()=>{$('#gdQty').value=Math.min(30,gqty()+1)});
+const gdLabel=()=>{const n=gqty();$('#gdGo').textContent=n>1?'Anotar '+n+' goles':'Anotar gol'};
+$('#gdMinus').addEventListener('click',gdLabel);$('#gdPlus').addEventListener('click',gdLabel);$('#gdQty').addEventListener('input',gdLabel);
+$('#gdFill').addEventListener('click',()=>{$('#gdQty').value=$('#gdFill').dataset.n;gdLabel()});
 $('#gdMatch').addEventListener('change',paintGoalInfo);
 const closeGoalDialog=()=>{$('#goalModal').hidden=true;const p=goalDraft&&goalDraft.p;goalDraft=null;
   const b=p&&document.querySelector(`#rosterTable button[data-act="inc"][data-id="${p.id}"]`);if(b)b.focus()};
@@ -1388,15 +1402,20 @@ $('#goalModal').addEventListener('click',e=>{if(e.target===$('#goalModal'))close
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#goalModal').hidden)closeGoalDialog()});
 $('#goalForm').addEventListener('submit',async e=>{
   e.preventDefault();if(!goalDraft)return;
-  const {p}=goalDraft,match=$('#gdMatch').value||null,c=match?goalCheck(match):null;
-  const over=c&&(p.team===c.ta?c.pa>=c.ga:c.pb>=c.gb);
+  const {p}=goalDraft,match=$('#gdMatch').value||null,c=match?goalCheck(match):null,n=gqty();
+  const room=c?(p.team===c.ta?c.ga-c.pa:c.gb-c.pb):Infinity;
+  if(c&&n>room&&room>0){$('#goalModal').hidden=true;
+    const ok=await askConfirm('Son más goles de los que faltan','Según el marcador, a '+nm(p.team)+' le '+(room===1?'falta 1 gol':'faltan '+room+' goles')+' por registrar en este partido y está anotando '+n+'. Si sigue, sobrarán '+(n-room)+'.','Anotar los '+n+' de todos modos');
+    if(!ok){$('#goalModal').hidden=false;return}}
+  const over=c&&room<=0;
   if(over){$('#goalModal').hidden=true;
     const ok=await askConfirm('Ese partido ya tiene todos sus goles',nm(p.team)+' anotó '+plural(p.team===c.ta?c.ga:c.gb,'gol','goles')+' según el marcador y ya están registrados. Si agrega este gol, sobrará uno. Revise el marcador o elija otro partido.','Agregar de todos modos');
     if(!ok){$('#goalModal').hidden=false;return}}
-  GL().push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),pid:p.id,match,at:new Date().toISOString()});
+  const now=new Date().toISOString();
+  for(let i=0;i<n;i++)GL().push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,7)+i,pid:p.id,match,at:now});
   $('#goalModal').hidden=true;goalDraft=null;save();refresh();
   const c2=match?goalCheck(match):null;
-  toast('Gol de '+p.name+(match?' en '+matchLabel(match).split(' · ').slice(0,2).join(' · '):'')+'.'+(c2&&c2.ok?' Goles del partido completos.':''));
+  toast((n>1?n+' goles':'Gol')+' de '+p.name+(match?' en '+matchLabel(match).split(' · ').slice(0,2).join(' · '):'')+'.'+(c2&&c2.ok?' Goles del partido completos.':''));
   const b=document.querySelector(`#rosterTable button[data-act="inc"][data-id="${p.id}"]`);if(b)b.focus();
 });
 async function removeLastGoal(p){
