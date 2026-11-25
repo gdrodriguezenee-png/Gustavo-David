@@ -35,11 +35,15 @@
     bienvenida: "¡Bienvenidos! Ingresa tu DNI para ver tu invitación personal.",
 
     /* CONFIRMACIONES DE ASISTENCIA: llena una de las dos.
-       hojaConfirmaciones: URL /exec de tu hoja de Google (pasos en confirmaciones.gs).
+       hojaConfirmaciones: URL /exec de tu hoja de Google (pasos en invitaciones.gs).
        whatsapp: número con código de país y solo dígitos, ej. "50499998888".
        Si ambas están vacías, la confirmación solo queda en el teléfono del invitado. */
     hojaConfirmaciones: "https://script.google.com/macros/s/AKfycbzf369OvqugiHYZ-WClBsrCz22ZCPLLEdSNpLN50fu03OV4yD0WZpNC5gcI30Un2JxM0g/exec",
-    whatsapp: ""
+    whatsapp: "",
+
+    // true  = la fecha, el lugar y los invitados se leen de tu hoja de Google (invitaciones.gs).
+    // false = se usan los datos escritos en este archivo.
+    datosEnHoja: true
   };
 
   /* ─────────── 2) LISTA DE INVITADOS ───────────
@@ -56,13 +60,7 @@
      No borres las marcas INICIO-LISTA y FIN-LISTA. */
   /*INICIO-LISTA*/
   const INVITADOS = [
-    { dni: "0801199012345", nombre: "Carlos Mendoza",        hijos: 2, nombresHijos: ["Daniela Mendoza", "Mateo Mendoza"] },
-    { dni: "0801198554321", nombre: "María Fernanda López",  hijos: 0 },
-    { dni: "0501199298765", nombre: "Roberto García",        hijos: 3 },
-    { dni: "0801199511223", nombre: "Ana Sofía Castro",      hijos: 1 },
-    { dni: "0101198833445", nombre: "Luis Alejandro Rivera", hijos: 2 },
-    // ↓↓↓ Agrega tus invitados aquí ↓↓↓
-
+    // Con datosEnHoja: true los invitados van en la pestaña "Invitados" de tu hoja, no aquí.
   ];
   const PROTEGIDA = null;  // aquí queda la lista cifrada al usar el panel
   /*FIN-LISTA*/
@@ -151,6 +149,7 @@
 <main id="panel" hidden class="pantalla min-h-[100svh] px-4 py-8">
   <div class="max-w-3xl mx-auto rounded-2xl bg-crema border-2 border-oro p-5 sm:p-8">
     <h2 class="text-2xl font-bold text-vino">Fecha y lugar</h2>
+    <p id="notaHoja" hidden class="mt-2 leading-relaxed">Se cambian en la pestaña <b>Evento</b> de tu hoja de Google, y los invitados en la pestaña <b>Invitados</b>. Los cambios se aplican solos: no hay que descargar ni subir nada. Aquí abajo puedes previsualizar un listado y crear el QR.</p>
     <form id="datos" class="mt-4 grid gap-4 sm:grid-cols-2">
       <label class="font-semibold">Fecha<input name="dia" type="date" required class="campo"></label>
       <label class="font-semibold">Hora<input name="hora" type="time" required class="campo"></label>
@@ -184,7 +183,7 @@
         <button id="bajarPagina" type="button" class="boton principal">Descargar página actualizada</button>
         <button id="bajarZip" type="button" class="boton">Descargar todas las invitaciones</button>
       </div>
-      <p class="mt-3 text-sm leading-relaxed">La <b>página actualizada</b> (Invitacion.html) lleva los DNI y nombres cifrados y es la que subes a tu hosting: reemplaza la anterior y el QR sigue igual. La segunda opción baja un ZIP con la imagen de cada invitado.</p>
+      <p id="notaPagina" class="mt-3 text-sm leading-relaxed">La <b>página actualizada</b> (Invitacion.html) lleva los DNI y nombres cifrados y es la que subes a tu hosting: reemplaza la anterior y el QR sigue igual. La segunda opción baja un ZIP con la imagen de cada invitado.</p>
       <div class="mt-5 max-h-[420px] overflow-auto rounded-lg border border-oro/60 bg-white">
         <table class="w-full text-sm text-left">
           <thead class="sticky top-0 bg-[#F6E6B8]"><tr><th class="px-3 py-2">DNI</th><th class="px-3 py-2">Nombre</th><th class="px-3 py-2">Hijos</th><th class="px-3 py-2">Nombres de los hijos</th><th class="px-3 py-2"><span class="sr-only">Invitación</span></th></tr></thead>
@@ -25016,6 +25015,34 @@ vmGdVEM//9k=
       "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent([EVENTO.lugar, EVENTO.direccion, "Honduras"].filter(Boolean).join(", "));
   }
   aplicarEvento();
+
+  /* ── Datos en la hoja de Google ── */
+  const CON_HOJA = !!(EVENTO.datosEnHoja && EVENTO.hojaConfirmaciones);
+  const limite = () => AbortSignal.timeout ? AbortSignal.timeout(30000) : undefined;
+  async function pedir(cuerpo) { // text/plain evita la verificación previa que Apps Script no admite
+    const r = await fetch(EVENTO.hojaConfirmaciones, {
+      method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(cuerpo), signal: limite()
+    });
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.error || "sin respuesta");
+    return j;
+  }
+  function tomarEvento(ev) {
+    if (!ev || !/^\d{4}-\d{2}-\d{2}$/.test(ev.dia) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(ev.hora) || !ev.lugar) return;
+    for (const c in CUANDO_DONDE) CUANDO_DONDE[c] = String(ev[c] || "").slice(0, 4000);
+    aplicarEvento();
+  }
+  let eventoListo = Promise.resolve();
+  if (CON_HOJA) {
+    const fecha = document.querySelector('#acceso [data-evento="fecha"]');
+    const mostrar = () => { fecha.style.visibility = ""; };
+    fecha.style.visibility = "hidden"; // evita mostrar por un momento una fecha anterior
+    setTimeout(mostrar, 6000);
+    eventoListo = fetch(EVENTO.hojaConfirmaciones, { signal: limite() }).then(r => r.json())
+      .then(j => tomarEvento(j.evento)).catch(() => {}).then(mostrar);
+    $("notaHoja").hidden = false;
+    $("datos").hidden = $("bajarPagina").hidden = $("notaPagina").hidden = true;
+  }
   $("vestimenta").hidden = !EVENTO.vestimenta;
 
   /* ── DNI: formato automático 0000-0000-00000 ── */
@@ -25066,6 +25093,16 @@ vmGdVEM//9k=
     return { sal: aB64(sal), vueltas: VUELTAS, datos };
   }
   async function buscarInvitado(dni) {
+    if (CON_HOJA && lista === INVITADOS) {
+      const j = await pedir({ accion: "consultar", dni });
+      if (!("invitado" in j)) throw new Error("script anterior");
+      tomarEvento(j.evento);
+      if (!j.invitado) return null;
+      const k = `asistencia:${EVENTO.nombre}:${dni}`; // manda lo que diga la hoja
+      if (j.confirmado) confirmadosSesion.add(k); else confirmadosSesion.delete(k);
+      try { localStorage.removeItem(k); } catch {}
+      return { dni, nombre: String(j.invitado.nombre), hijos: j.invitado.hijos, nombresHijos: j.invitado.nombresHijos || [] };
+    }
     const abierto = lista.find(i => soloDigitos(i.dni) === dni);
     if (abierto || !PROTEGIDA || lista !== INVITADOS) return abierto;
     if (!window.crypto || !crypto.subtle) throw new Error("sin cifrado");
@@ -25085,7 +25122,8 @@ vmGdVEM//9k=
     let hallado = null, mensaje = NO_ENCONTRADO;
     boton.disabled = true; boton.textContent = "Buscando…";
     try { if (dni.length === 13) hallado = await buscarInvitado(dni); }
-    catch { mensaje = "No pudimos consultar tu invitación en este navegador. Abre el enlace con https:// en Chrome o Safari actualizado."; }
+    catch { mensaje = CON_HOJA ? "No pudimos consultar tu invitación en este momento. Revisa tu internet e inténtalo de nuevo en unos minutos."
+      : "No pudimos consultar tu invitación en este navegador. Abre el enlace con https:// en Chrome o Safari actualizado."; }
     boton.disabled = false; boton.textContent = "Consultar Invitación";
     if (!hallado) {
       mostrarError(mensaje);
@@ -25149,13 +25187,7 @@ vmGdVEM//9k=
     if (EVENTO.hojaConfirmaciones) {
       b.disabled = true; b.textContent = "Enviando…"; $("volver").disabled = true;
       try {
-        // text/plain evita la verificación previa que Apps Script no admite.
-        const r = await fetch(EVENTO.hojaConfirmaciones, {
-          method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
-          body: JSON.stringify({ dni: soloDigitos(quien.dni), nombre: quien.nombre, hijos: hijosDe(quien) }),
-          signal: AbortSignal.timeout ? AbortSignal.timeout(30000) : undefined
-        });
-        if (!(await r.json()).ok) throw new Error();
+        await pedir({ accion: "confirmar", dni: soloDigitos(quien.dni), nombre: quien.nombre, hijos: hijosDe(quien) });
       } catch {
         pintarConfirmacion();
         $("aviso").textContent = "No se pudo enviar tu confirmación. Revisa tu internet e inténtalo de nuevo.";
@@ -25535,7 +25567,7 @@ Asistimos: 1 adulto${h ? " + " + textoHijos(h) : ""}`;
   for (const c in CUANDO_DONDE) datos.elements[c].value = CUANDO_DONDE[c];
   function leerDatos(avisar) {
     if (!(avisar ? datos.reportValidity() : datos.checkValidity())) return false;
-    for (const c in CUANDO_DONDE) CUANDO_DONDE[c] = datos.elements[c].value.trim().slice(0, c === "hora" ? 5 : 500);
+    for (const c in CUANDO_DONDE) CUANDO_DONDE[c] = datos.elements[c].value.trim().slice(0, c === "hora" ? 5 : 4000);
     aplicarEvento();
     return true;
   }
@@ -25564,7 +25596,7 @@ Asistimos: 1 adulto${h ? " + " + textoHijos(h) : ""}`;
     for (let f = 0; f < n; f++) for (let k = 0; k < n; k++) if (qr.isDark(f, k)) x.fillRect(px + o + k * m, py + o + f * m, m, m);
   }
   async function dibujarAfiche(qr, url) {
-    await prepararFondo();
+    await Promise.all([prepararFondo(), eventoListo]);
     const c = document.createElement("canvas"); c.width = 1200; c.height = 1800;
     const x = c.getContext("2d"), { bloque } = escritor(x);
     const g = x.createRadialGradient(600, 900, 0, 600, 900, 1000);
