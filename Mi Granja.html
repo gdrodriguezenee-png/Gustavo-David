@@ -1185,7 +1185,37 @@ Object.values(SPECIES).forEach(s=>{s.plan=buildPlan(s);s.ovos=s.inc.ovos});
     else if(view==='detalle')renderDetalle();
     else if(view==='form')renderPickForm();
   }
-  function renderAll(){renderView();if(view!=='inicio')renderInicio()}
+  function renderAll(){renderView();if(view!=='inicio')renderInicio();syncAvisos()}
+
+  // ---------- recordatorios en la app de Android ----------
+  // un aviso por lote y por día de incubación a las 7:00; los días clave dicen qué hacer
+  let avisosPrev='';
+  const hashId=s=>{let h=7;for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))|0;return h&0x7fffffff};
+  function avisosIncubacion(ahora){
+    const out=[];
+    lotes.forEach(l=>{
+      const I=info(l), s=I.s;
+      if(I.nacido||I.diaInc>s.days)return;
+      for(let d=Math.max(0,I.diaInc);d<=s.days;d++){
+        const cuando=add(I.inicio,d);cuando.setHours(7,0,0,0);
+        if(+cuando<=ahora)continue;
+        const [t,m]=incDay(s,d), falta=s.days-d;
+        const clave=d===8||d===s.lock||d===s.days||s.inc.ovos.includes(d);
+        out.push({id:hashId(l.id+':'+d),at:+cuando,
+          titulo:d===s.lock?l.nombre+': hoy deja de voltear':clave?l.nombre+': '+t:l.nombre+' · día '+d+' de '+s.days,
+          texto:clave?m:(falta===1?'Mañana nacen. ':'Faltan '+falta+' días para el nacimiento. ')+m});
+      }
+    });
+    return out.sort((a,b)=>a.at-b.at).slice(0,150);
+  }
+  function syncAvisos(){
+    const A=window.GranjaAndroid;
+    if(!A||typeof A.programar!=='function')return;
+    const j=JSON.stringify(avisosIncubacion(Date.now()));
+    if(j===avisosPrev)return;
+    avisosPrev=j;
+    try{A.programar(j)}catch(e){}
+  }
   function renderPickForm(){
     const cur=$('lEspecie').value;
     $('pickForm').innerHTML=Object.keys(SPECIES).map(k=>birdCard(k,'data-pick',k===cur)).join('');
